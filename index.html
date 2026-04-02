@@ -1,0 +1,1126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Vestd — Campaign Performance Dashboard</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --vestd-purple: #5B2D8E;
+      --bg: #F5F4F8;
+      --card: #FFFFFF;
+      --border: #E2DFF0;
+      --text: #1A1523;
+      --muted: #6B7280;
+      --growth: #16A34A;   --growth-bg: #DCFCE7;
+      --scale: #D97706;    --scale-bg: #FEF3C7;
+      --enterprise: #DC2626; --enterprise-bg: #FEE2E2;
+      --central: #2563EB;  --central-bg: #DBEAFE;
+      --pmi: #7C3AED;      --pmi-bg: #EDE9FE;
+    }
+
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+
+    /* ── HEADER ── */
+    header {
+      position: sticky; top: 0; z-index: 200;
+      background: var(--vestd-purple); color: #fff;
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0 24px; height: 60px; box-shadow: 0 2px 8px rgba(0,0,0,.25);
+    }
+    .header-left { display: flex; align-items: center; gap: 14px; }
+    .logo { font-size: 22px; font-weight: 800; letter-spacing: -.5px; color: #fff; }
+    .logo span { color: #C4B5FD; }
+    .header-title { font-size: 14px; font-weight: 500; opacity: .85; border-left: 1px solid rgba(255,255,255,.3); padding-left: 14px; }
+    .header-right { display: flex; align-items: center; gap: 12px; font-size: 13px; opacity: .8; }
+    #refresh-indicator { display: inline-flex; align-items: center; gap: 6px; }
+    .dot { width: 8px; height: 8px; border-radius: 50%; background: #4ADE80; animation: pulse 2s infinite; }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+
+    /* ── FILTER BAR ── */
+    .filter-bar { background: var(--card); border-bottom: 1px solid var(--border); padding: 10px 24px; display: flex; flex-direction: column; gap: 8px; }
+    .filter-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+    .filter-group { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+    .filter-divider { width: 1px; height: 22px; background: var(--border); flex-shrink: 0; }
+    .filter-label { font-size: 11px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .4px; white-space: nowrap; }
+    .filter-spacer { margin-left: auto; }
+
+    .tab-btn { padding: 5px 12px; border-radius: 20px; border: 1.5px solid var(--border); background: none; font-size: 12px; font-weight: 500; cursor: pointer; transition: all .15s; color: var(--muted); white-space: nowrap; }
+    .tab-btn:hover { border-color: var(--vestd-purple); color: var(--vestd-purple); }
+    .tab-btn.active { background: var(--vestd-purple); color: #fff; border-color: var(--vestd-purple); }
+    .tab-btn[data-team="Growth"].active    { background: var(--growth);     border-color: var(--growth); }
+    .tab-btn[data-team="Scale"].active     { background: var(--scale);      border-color: var(--scale); }
+    .tab-btn[data-team="Enterprise"].active{ background: var(--enterprise); border-color: var(--enterprise); }
+    .tab-btn[data-team="Central"].active   { background: var(--central);    border-color: var(--central); }
+    .tab-btn[data-team="PMI"].active       { background: var(--pmi);        border-color: var(--pmi); }
+    .tab-btn[data-platform="LinkedIn"].active      { background: #0077B5; border-color: #0077B5; }
+    .tab-btn[data-platform="Google Ads"].active    { background: #EA4335; border-color: #EA4335; }
+    .tab-btn[data-platform="Microsoft Ads"].active { background: #00BCF2; border-color: #00BCF2; }
+
+    select { padding: 5px 10px; border-radius: 8px; border: 1.5px solid var(--border); font-size: 12px; background: #fff; cursor: pointer; color: var(--text); height: 30px; }
+    select:focus { outline: none; border-color: var(--vestd-purple); }
+
+    /* ── DATE RANGE ── */
+    .date-range-widget { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+    .date-presets { display: flex; gap: 4px; flex-wrap: wrap; }
+    .preset-btn { padding: 4px 10px; border-radius: 14px; border: 1.5px solid var(--border); background: none; font-size: 11px; font-weight: 500; cursor: pointer; color: var(--muted); transition: all .12s; white-space: nowrap; }
+    .preset-btn:hover { border-color: var(--vestd-purple); color: var(--vestd-purple); }
+    .preset-btn.active { background: var(--vestd-purple); color: #fff; border-color: var(--vestd-purple); }
+    .date-inputs { display: flex; align-items: center; gap: 6px; }
+    .date-inputs input[type="date"] { padding: 4px 8px; border-radius: 8px; border: 1.5px solid var(--border); font-size: 12px; color: var(--text); background: #fff; cursor: pointer; font-family: inherit; height: 30px; }
+    .date-inputs input[type="date"]:focus { outline: none; border-color: var(--vestd-purple); }
+    .date-sep { font-size: 12px; color: var(--muted); }
+    .date-hint { font-size: 11px; color: var(--muted); font-style: italic; }
+    #last-updated { font-size: 11px; color: var(--muted); white-space: nowrap; }
+
+    #clear-filters { padding: 5px 12px; border-radius: 8px; border: 1.5px solid var(--border); background: none; font-size: 12px; color: var(--muted); cursor: pointer; transition: all .12s; }
+    #clear-filters:hover { border-color: #DC2626; color: #DC2626; }
+
+    /* ── KPI TOOLTIP ── */
+    #kpi-tooltip { position: fixed; z-index: 9999; background: #1A1523; color: #fff; font-size: 12px; line-height: 1.5; padding: 9px 13px; border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,.3); max-width: 280px; pointer-events: none; display: none; white-space: normal; }
+    .kpi-label-row { display: flex; align-items: center; gap: 5px; margin-bottom: 6px; }
+    .kpi-info-icon { display: inline-flex; align-items: center; justify-content: center; width: 14px; height: 14px; border-radius: 50%; background: var(--border); color: var(--muted); font-size: 9px; font-weight: 700; cursor: default; border: none; padding: 0; line-height: 1; flex-shrink: 0; transition: background .12s, color .12s; }
+    .kpi-info-icon:hover { background: var(--vestd-purple); color: #fff; }
+    .kpi-label { font-size: 11px; color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: .5px; }
+    .kpi-value { font-size: 26px; font-weight: 700; color: var(--text); line-height: 1; }
+    .kpi-sub { font-size: 11px; color: var(--muted); margin-top: 4px; }
+
+    /* ── MAIN ── */
+    main { padding: 20px 24px; max-width: 1800px; margin: 0 auto; }
+
+    /* ── KPI CARDS ── */
+    .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(148px,1fr)); gap: 14px; margin-bottom: 16px; }
+    .kpi-card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 16px 18px; }
+    .kpi-card.qd { border-top: 3px solid var(--vestd-purple); }
+
+    /* ── CHART SECTIONS ── */
+    .chart-section { margin-bottom: 24px; }
+    .chart-section-header { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
+    .chart-section-title { font-size: 13px; font-weight: 700; color: var(--vestd-purple); text-transform: uppercase; letter-spacing: .6px; }
+    .chart-section-line { flex: 1; height: 1px; background: var(--border); }
+
+    /* 2-col on desktop, 1-col on mobile */
+    .charts-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 16px;
+    }
+    @media (max-width: 840px) {
+      .charts-grid { grid-template-columns: 1fr; }
+    }
+
+    /* Status section: status chart + optional companion */
+    .charts-grid-status {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
+    @media (max-width: 840px) {
+      .charts-grid-status { grid-template-columns: 1fr; }
+    }
+
+    .chart-card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 18px; }
+    .chart-title { font-size: 13px; font-weight: 600; color: var(--text); margin-bottom: 4px; }
+    .chart-subtitle { font-size: 11px; color: var(--muted); margin-bottom: 12px; }
+    .chart-wrap { position: relative; height: 240px; }
+    .chart-wrap.tall { height: 280px; }
+    .chart-empty { display: flex; align-items: center; justify-content: center; height: 100%; color: var(--muted); font-size: 12px; font-style: italic; }
+
+    /* ── TABLE ── */
+    .table-card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
+    .table-header { display: flex; align-items: center; justify-content: space-between; padding: 14px 18px; border-bottom: 1px solid var(--border); }
+    .table-header-left { display: flex; align-items: center; gap: 10px; }
+    .table-header h2 { font-size: 14px; font-weight: 600; }
+    .row-count { font-size: 12px; color: var(--muted); }
+    .table-search { padding: 6px 11px; border: 1.5px solid var(--border); border-radius: 8px; font-size: 12px; width: 200px; }
+    .table-search:focus { outline: none; border-color: var(--vestd-purple); }
+    .table-wrap { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; font-size: 12px; }
+    thead th { background: #F9F8FC; padding: 9px 13px; text-align: left; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; color: var(--muted); white-space: nowrap; border-bottom: 1px solid var(--border); cursor: pointer; user-select: none; }
+    thead th:hover { background: #EFECF8; color: var(--vestd-purple); }
+    thead th.sort-asc::after  { content: ' ↑'; color: var(--vestd-purple); }
+    thead th.sort-desc::after { content: ' ↓'; color: var(--vestd-purple); }
+    tbody tr { border-bottom: 1px solid var(--border); transition: background .1s; }
+    tbody tr:last-child { border-bottom: none; }
+    tbody tr:hover { background: #FAFAFA; }
+    tbody td { padding: 9px 13px; white-space: nowrap; }
+
+    .team-badge { display: inline-block; padding: 2px 9px; border-radius: 12px; font-size: 10px; font-weight: 700; }
+    .team-Growth     { background: var(--growth-bg);     color: var(--growth); }
+    .team-Scale      { background: var(--scale-bg);      color: var(--scale); }
+    .team-Enterprise { background: var(--enterprise-bg); color: var(--enterprise); }
+    .team-Central    { background: var(--central-bg);    color: var(--central); }
+    .team-PMI        { background: var(--pmi-bg);        color: var(--pmi); }
+
+    .status-badge { display: inline-block; padding: 2px 9px; border-radius: 12px; font-size: 10px; font-weight: 700; }
+    .status-active   { background: #DCFCE7; color: #16A34A; }
+    .status-paused   { background: #FEF3C7; color: #D97706; }
+    .status-inactive { background: #F3F4F6; color: #6B7280; }
+
+    .util-bar-wrap { display: flex; align-items: center; gap: 7px; min-width: 90px; }
+    .util-bar-bg   { flex: 1; height: 5px; border-radius: 3px; background: #E5E7EB; overflow: hidden; }
+    .util-bar-fill { height: 100%; border-radius: 3px; }
+
+    .no-data { text-align: center; padding: 40px; color: var(--muted); font-size: 13px; }
+
+    /* ── LOADING ── */
+    .loading-overlay { position: fixed; inset: 0; background: rgba(255,255,255,.88); display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 999; gap: 14px; }
+    .spinner { width: 38px; height: 38px; border: 3px solid var(--border); border-top-color: var(--vestd-purple); border-radius: 50%; animation: spin .8s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .loading-overlay.hidden { display: none; }
+  </style>
+</head>
+<body>
+
+<div id="kpi-tooltip"></div>
+
+<div class="loading-overlay" id="loading">
+  <div class="spinner"></div>
+  <p style="color:var(--muted);font-size:14px">Loading campaign data…</p>
+</div>
+
+<!-- Header -->
+<header>
+  <div class="header-left">
+    <div class="logo">vest<span>d</span></div>
+    <div class="header-title">Campaign Performance Dashboard</div>
+  </div>
+  <div class="header-right">
+    <div id="refresh-indicator"><span class="dot"></span> Live</div>
+    <span id="last-updated">Fetching…</span>
+  </div>
+</header>
+
+<!-- Filter Bar -->
+<div class="filter-bar">
+  <!-- Row 1: Teams + Platforms -->
+  <div class="filter-row">
+    <span class="filter-label">Team</span>
+    <div class="filter-group" id="team-tabs">
+      <button class="tab-btn active" data-team="All">All Teams</button>
+      <button class="tab-btn" data-team="Growth">Growth</button>
+      <button class="tab-btn" data-team="Scale">Scale</button>
+      <button class="tab-btn" data-team="Enterprise">Enterprise</button>
+      <button class="tab-btn" data-team="Central">Central</button>
+      <button class="tab-btn" data-team="PMI">PMI</button>
+    </div>
+    <div class="filter-divider"></div>
+    <span class="filter-label">Platform</span>
+    <div class="filter-group" id="platform-tabs">
+      <button class="tab-btn" data-platform="LinkedIn">LinkedIn</button>
+      <button class="tab-btn" data-platform="Google Ads">Google Ads</button>
+      <button class="tab-btn" data-platform="Microsoft Ads">Microsoft Ads</button>
+    </div>
+    <div class="filter-spacer"></div>
+    <button id="clear-filters">✕ Clear filters</button>
+  </div>
+
+  <!-- Row 2: Status + Funnel Stage + Date Range -->
+  <div class="filter-row">
+    <span class="filter-label">Status</span>
+    <select id="status-filter">
+      <option value="all">All Statuses</option>
+      <option value="active">Active</option>
+      <option value="paused">Paused</option>
+      <option value="ended">Ended</option>
+    </select>
+
+    <div class="filter-divider"></div>
+
+    <span class="filter-label">Funnel Stage</span>
+    <select id="funnel-filter">
+      <option value="all">All Stages</option>
+    </select>
+
+    <div class="filter-divider"></div>
+
+    <span class="filter-label">Date Range</span>
+    <div class="date-range-widget">
+      <div class="date-presets" id="date-presets">
+        <button class="preset-btn active" data-preset="all">All Time</button>
+        <button class="preset-btn" data-preset="today">Today</button>
+        <button class="preset-btn" data-preset="7d">Last 7d</button>
+        <button class="preset-btn" data-preset="30d">Last 30d</button>
+        <button class="preset-btn" data-preset="thisMonth">This Month</button>
+        <button class="preset-btn" data-preset="lastMonth">Last Month</button>
+        <button class="preset-btn" data-preset="thisQuarter">This Quarter</button>
+        <button class="preset-btn" data-preset="lastQuarter">Last Quarter</button>
+      </div>
+      <div class="date-inputs">
+        <input type="date" id="date-from" title="From date" />
+        <span class="date-sep">→</span>
+        <input type="date" id="date-to" title="To date" />
+      </div>
+      <span class="date-hint" id="date-hint"></span>
+    </div>
+  </div>
+</div>
+
+<!-- Main -->
+<main>
+
+  <!-- KPI Row 1 -->
+  <div class="kpi-grid">
+    <div class="kpi-card">
+      <div class="kpi-label-row"><span class="kpi-label">Total Spend</span><button class="kpi-info-icon" data-tooltip="The total amount spent across all active campaigns in the selected period">i</button></div>
+      <div class="kpi-value" id="kpi-spend">—</div>
+      <div class="kpi-sub" id="kpi-spend-sub"></div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label-row"><span class="kpi-label">Impressions</span><button class="kpi-info-icon" data-tooltip="The total number of times your ads were displayed to users">i</button></div>
+      <div class="kpi-value" id="kpi-impressions">—</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label-row"><span class="kpi-label">Total Reach</span><button class="kpi-info-icon" data-tooltip="The number of unique people who saw your ads at least once">i</button></div>
+      <div class="kpi-value" id="kpi-reach">—</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label-row"><span class="kpi-label">Clicks</span><button class="kpi-info-icon" data-tooltip="The total number of times users clicked on your ads">i</button></div>
+      <div class="kpi-value" id="kpi-clicks">—</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label-row"><span class="kpi-label">Avg CTR</span><button class="kpi-info-icon" data-tooltip="Click-Through Rate — the percentage of impressions that resulted in a click. Formula: Clicks ÷ Impressions × 100">i</button></div>
+      <div class="kpi-value" id="kpi-ctr">—</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label-row"><span class="kpi-label">Avg CPC</span><button class="kpi-info-icon" data-tooltip="Cost Per Click — the average amount spent each time a user clicks your ad. Formula: Total Spend ÷ Clicks">i</button></div>
+      <div class="kpi-value" id="kpi-cpc">—</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label-row"><span class="kpi-label">CPM</span><button class="kpi-info-icon" data-tooltip="Cost Per 1,000 Impressions — how much it costs to serve 1,000 ad impressions. Formula: (Spend ÷ Impressions) × 1,000">i</button></div>
+      <div class="kpi-value" id="kpi-cpm">—</div>
+      <div class="kpi-sub">per 1,000 impressions</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label-row"><span class="kpi-label">Active Campaigns</span><button class="kpi-info-icon" data-tooltip="The number of campaigns currently running with an Active status">i</button></div>
+      <div class="kpi-value" id="kpi-active">—</div>
+    </div>
+  </div>
+
+  <!-- KPI Row 2: QD metrics -->
+  <div class="kpi-grid" id="qd-grid" style="display:none;margin-top:-4px">
+    <div class="kpi-card qd">
+      <div class="kpi-label-row"><span class="kpi-label">Influenced QDs</span><button class="kpi-info-icon" data-tooltip="Qualified Demos influenced by paid campaigns across all teams">i</button></div>
+      <div class="kpi-value" id="kpi-influenced-qds">—</div>
+    </div>
+    <div class="kpi-card qd">
+      <div class="kpi-label-row"><span class="kpi-label">Growth QDs</span><button class="kpi-info-icon" data-tooltip="Qualified Demos attributed to the Growth team's campaigns">i</button></div>
+      <div class="kpi-value" id="kpi-growth-qds">—</div>
+    </div>
+    <div class="kpi-card qd">
+      <div class="kpi-label-row"><span class="kpi-label">Scale QDs</span><button class="kpi-info-icon" data-tooltip="Qualified Demos attributed to the Scale team's campaigns">i</button></div>
+      <div class="kpi-value" id="kpi-scale-qds">—</div>
+    </div>
+    <div class="kpi-card qd">
+      <div class="kpi-label-row"><span class="kpi-label">Enterprise QDs</span><button class="kpi-info-icon" data-tooltip="Qualified Demos attributed to the Enterprise team's campaigns">i</button></div>
+      <div class="kpi-value" id="kpi-enterprise-qds">—</div>
+    </div>
+    <div class="kpi-card qd">
+      <div class="kpi-label-row"><span class="kpi-label">SPV QDs</span><button class="kpi-info-icon" data-tooltip="Qualified Demos attributed to SPV (Special Purpose Vehicle) campaigns">i</button></div>
+      <div class="kpi-value" id="kpi-spv-qds">—</div>
+    </div>
+  </div>
+
+  <!-- ── CHARTS: PERFORMANCE ── -->
+  <div class="chart-section" style="margin-top:20px">
+    <div class="chart-section-header">
+      <span class="chart-section-title">Performance</span>
+      <div class="chart-section-line"></div>
+    </div>
+    <div class="charts-grid">
+      <div class="chart-card">
+        <div class="chart-title">Spend by Platform</div>
+        <div class="chart-subtitle">Total spend distribution across platforms</div>
+        <div class="chart-wrap"><canvas id="chart-platform-donut"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-title">Spend by Platform (Trend)</div>
+        <div class="chart-subtitle">Comparative spend per platform</div>
+        <div class="chart-wrap"><canvas id="chart-spend-trend"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-title">Budget vs Spend by Team</div>
+        <div class="chart-subtitle">Allocated budget vs actual spend per team</div>
+        <div class="chart-wrap"><canvas id="chart-budget-vs-spend"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-title">Impressions by Team</div>
+        <div class="chart-subtitle">Total ad impressions per team</div>
+        <div class="chart-wrap"><canvas id="chart-team-impressions"></canvas></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── CHARTS: EFFICIENCY ── -->
+  <div class="chart-section">
+    <div class="chart-section-header">
+      <span class="chart-section-title">Efficiency</span>
+      <div class="chart-section-line"></div>
+    </div>
+    <div class="charts-grid">
+      <div class="chart-card">
+        <div class="chart-title">CPC by Platform</div>
+        <div class="chart-subtitle">Average cost per click — lower is better</div>
+        <div class="chart-wrap tall"><canvas id="chart-cpc-platform"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-title">Funnel Performance</div>
+        <div class="chart-subtitle">Impressions → Reach → Clicks → QDs</div>
+        <div class="chart-wrap tall"><canvas id="chart-funnel"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-title">Qualified Demos by Team</div>
+        <div class="chart-subtitle">Influenced QDs attributed per team</div>
+        <div class="chart-wrap" id="chart-qd-wrap"><canvas id="chart-qd-team"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-title">Spend Efficiency (Cost per QD)</div>
+        <div class="chart-subtitle">Total spend ÷ QDs — lower is better</div>
+        <div class="chart-wrap tall" id="chart-cost-qd-wrap"><canvas id="chart-cost-qd"></canvas></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── CHARTS: STATUS ── -->
+  <div class="chart-section">
+    <div class="chart-section-header">
+      <span class="chart-section-title">Status</span>
+      <div class="chart-section-line"></div>
+    </div>
+    <div class="charts-grid-status">
+      <div class="chart-card">
+        <div class="chart-title">Campaign Status Breakdown</div>
+        <div class="chart-subtitle">Count and proportion by campaign status</div>
+        <div class="chart-wrap"><canvas id="chart-status"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-title">Spend by Team</div>
+        <div class="chart-subtitle">Total spend per team</div>
+        <div class="chart-wrap"><canvas id="chart-team-spend"></canvas></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Table -->
+  <div class="table-card">
+    <div class="table-header">
+      <div class="table-header-left">
+        <h2>Campaigns</h2>
+        <span class="row-count" id="row-count"></span>
+      </div>
+      <input type="text" class="table-search" id="table-search" placeholder="Search campaigns…" />
+    </div>
+    <div class="table-wrap">
+      <table id="campaign-table">
+        <thead>
+          <tr>
+            <th data-col="name">Campaign</th>
+            <th data-col="team">Team</th>
+            <th data-col="platform">Platform</th>
+            <th data-col="funnelStage">Funnel Stage</th>
+            <th data-col="status">Status</th>
+            <th data-col="budget" class="sort-desc">Budget</th>
+            <th data-col="spend">Spend</th>
+            <th data-col="util">Utilisation %</th>
+            <th data-col="impressions">Impressions</th>
+            <th data-col="reach">Reach</th>
+            <th data-col="clicks">Clicks</th>
+            <th data-col="ctr">CTR</th>
+            <th data-col="cpc">CPC</th>
+          </tr>
+        </thead>
+        <tbody id="table-body">
+          <tr><td colspan="13" class="no-data">Loading…</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</main>
+
+<script>
+// ── CONFIG ───────────────────────────────────────────────────────────────────
+const CSV_URL    = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSTlCKrr6IOowoptr0BQol5Tdbir3zwgXKb9VEgmRnRFS7drFDiX5RmMHmQ2sTsow8Cti-njx-rMkIP/pub?gid=1210805509&single=true&output=csv';
+const PROXY      = 'https://corsproxy.io/?';
+const REFRESH_MS = 5 * 60 * 1000;
+
+// ── STATE ────────────────────────────────────────────────────────────────────
+let allRows        = [];
+let filteredRows   = [];
+let activeTeam     = 'All';
+let activePlatforms= new Set();
+let activeStatus   = 'all';
+let activeFunnel   = 'all';
+let dateFrom       = null;
+let dateTo         = null;
+let sortCol        = 'budget';
+let sortDir        = 'desc';
+let searchQuery    = '';
+let charts         = {};
+let hasQDColumns   = false;
+let hasFunnelCol   = false;
+let hasDateCol     = false;
+let dateColName    = null;
+
+// ── PALETTES ─────────────────────────────────────────────────────────────────
+const TEAM_COLORS = { Growth:'#16A34A', Scale:'#D97706', Enterprise:'#DC2626', Central:'#2563EB', PMI:'#7C3AED' };
+const TEAM_BG     = { Growth:'rgba(22,163,74,.15)', Scale:'rgba(217,119,6,.15)', Enterprise:'rgba(220,38,38,.15)', Central:'rgba(37,99,235,.15)', PMI:'rgba(124,58,237,.15)' };
+const PLATFORM_COLORS_LIST = ['#5B2D8E','#0077B5','#EA4335','#00BCF2','#9B6DC8','#D97706','#16A34A','#BB97DC'];
+
+function platformColor(name) {
+  const l = (name||'').toLowerCase();
+  if (l.includes('linkedin'))            return '#0077B5';
+  if (l.includes('google'))              return '#4285F4';
+  if (l.includes('microsoft')||l.includes('bing')) return '#00BCF2';
+  return PLATFORM_COLORS_LIST[0];
+}
+
+// ── UTILS ────────────────────────────────────────────────────────────────────
+const parseMoney = v => parseFloat(String(v||'').replace(/[^0-9.-]/g,'')) || 0;
+const parseNum   = v => parseFloat(String(v||'').replace(/[^0-9.-]/g,'')) || 0;
+const parsePct   = v => {
+  const s = String(v||'').trim();
+  if (s.endsWith('%')) return parseFloat(s)||0;
+  const n = parseFloat(s);
+  return (!isNaN(n)&&n>0&&n<=1) ? n*100 : (n||0);
+};
+const fmtMoney = n => {
+  if (!n&&n!==0) return '—';
+  if (n>=1e6) return '£'+(n/1e6).toFixed(2)+'M';
+  if (n>=1e3) return '£'+(n/1e3).toFixed(1)+'k';
+  return '£'+n.toFixed(2);
+};
+const fmtNum = n => {
+  if (!n&&n!==0) return '—';
+  if (n>=1e6) return (n/1e6).toFixed(2)+'M';
+  if (n>=1e3) return (n/1e3).toFixed(1)+'k';
+  return Math.round(n).toLocaleString();
+};
+const fmtPct  = n => n.toFixed(2)+'%';
+const escHtml = s => String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+const isoStr  = d => d ? d.toISOString().split('T')[0] : '';
+
+function statusClass(s) {
+  const l = String(s||'').toLowerCase();
+  if (l==='active'||(l.includes('active')&&!l.includes('in'))) return 'status-active';
+  if (l.includes('pause')) return 'status-paused';
+  return 'status-inactive';
+}
+function normaliseStatus(s) {
+  const l = String(s||'').toLowerCase();
+  if (l==='active'||(l.includes('active')&&!l.includes('in'))) return 'active';
+  if (l.includes('pause'))  return 'paused';
+  if (l.includes('end')||l.includes('complet')||l.includes('finish')) return 'ended';
+  return 'other';
+}
+
+function parseDate(str) {
+  if (!str) return null;
+  str = str.trim();
+  if (/^\d{4}-\d{2}-\d{2}/.test(str)) {
+    const d = new Date(str.slice(0,10));
+    return isNaN(d)?null:new Date(d.getUTCFullYear(),d.getUTCMonth(),d.getUTCDate());
+  }
+  const dmy = str.match(/^(\d{1,2})[\/\-\.](\d{1,2})[\/\-\.](\d{4})$/);
+  if (dmy) return new Date(+dmy[3],+dmy[2]-1,+dmy[1]);
+  const my  = str.match(/^([A-Za-z]+)\s+(\d{4})$/);
+  if (my)  { const d=new Date(str); return isNaN(d)?null:new Date(d.getFullYear(),d.getMonth(),1); }
+  const my2 = str.match(/^([A-Za-z]{3})[\s\-](\d{2})$/);
+  if (my2) { const d=new Date(my2[1]+' 20'+my2[2]); return isNaN(d)?null:new Date(d.getFullYear(),d.getMonth(),1); }
+  const d = new Date(str);
+  return isNaN(d)?null:d;
+}
+
+// ── DATE PRESETS ─────────────────────────────────────────────────────────────
+function today0()    { const d=new Date(); d.setHours(0,0,0,0); return d; }
+function endOfDay(d) { const x=new Date(d); x.setHours(23,59,59,999); return x; }
+function addDays(d,n){ const x=new Date(d); x.setDate(x.getDate()+n); return x; }
+function startOfMonth(d)   { return new Date(d.getFullYear(),d.getMonth(),1); }
+function endOfMonth(d)     { return new Date(d.getFullYear(),d.getMonth()+1,0); }
+function startOfQuarter(d) { const q=Math.floor(d.getMonth()/3); return new Date(d.getFullYear(),q*3,1); }
+function endOfQuarter(d)   { const q=Math.floor(d.getMonth()/3); return new Date(d.getFullYear(),q*3+3,0); }
+
+const DATE_PRESETS = {
+  all:         ()=>[null,null],
+  today:       ()=>{ const t=today0(); return [t,endOfDay(t)]; },
+  '7d':        ()=>[addDays(today0(),-6),endOfDay(today0())],
+  '30d':       ()=>[addDays(today0(),-29),endOfDay(today0())],
+  thisMonth:   ()=>[startOfMonth(today0()),endOfDay(today0())],
+  lastMonth:   ()=>{ const t=today0(),s=startOfMonth(new Date(t.getFullYear(),t.getMonth()-1,1)); return [s,endOfMonth(s)]; },
+  thisQuarter: ()=>[startOfQuarter(today0()),endOfDay(today0())],
+  lastQuarter: ()=>{ const t=today0(),p=new Date(t.getFullYear(),t.getMonth()-3,1); return [startOfQuarter(p),endOfQuarter(p)]; },
+};
+
+function applyPreset(key) {
+  const [from,to] = DATE_PRESETS[key]();
+  dateFrom = from; dateTo = to;
+  document.getElementById('date-from').value = isoStr(from);
+  document.getElementById('date-to').value   = isoStr(to);
+  document.querySelectorAll('.preset-btn').forEach(b=>b.classList.toggle('active',b.dataset.preset===key));
+  refresh();
+}
+
+// ── FETCH ────────────────────────────────────────────────────────────────────
+async function fetchData() {
+  const res  = await fetch(PROXY + encodeURIComponent(CSV_URL));
+  const text = await res.text();
+  const { data } = Papa.parse(text,{header:true,skipEmptyLines:true});
+  return data;
+}
+
+function detectColumns(keys) {
+  hasQDColumns = keys.some(k=>/QD/i.test(k));
+  hasFunnelCol = keys.some(k=>/funnel/i.test(k));
+  const dateKeys = ['Date','date','Month','month','Period','period','Start Date','Start date'];
+  dateColName = dateKeys.find(k=>keys.includes(k))||null;
+  hasDateCol  = !!dateColName;
+}
+
+function normaliseRow(r) {
+  return {
+    platform:     (r['Platform']||'').trim(),
+    team:         (r['Team']||'').trim(),
+    name:         (r['Campaign name']||'').trim(),
+    status:       (r['Campaign status']||'').trim(),
+    statusNorm:   normaliseStatus(r['Campaign status']),
+    editLink:     (r['Campaign edit link']||'').trim(),
+    budget:       parseMoney(r['Campaign total budget']),
+    spend:        parseMoney(r['Total Spent']),
+    reach:        parseNum(r['Reach']),
+    impressions:  parseNum(r['Impressions']),
+    clicks:       parseNum(r['Clicks']),
+    cpc:          parseMoney(r['CPC']),
+    ctr:          parsePct(r['CTR']),
+    util:         0,
+    funnelStage:  (r['Funnel stage']||r['Funnel Stage']||'').trim(),
+    dateStr:      dateColName?(r[dateColName]||'').trim():'',
+    dateParsed:   null,
+    influencedQDs:parseNum(r['Influenced QDs']),
+    growthQDs:    parseNum(r['Growth QDs']),
+    scaleQDs:     parseNum(r['Scale QDs']),
+    enterpriseQDs:parseNum(r['Enterprise QDs']),
+    spvQDs:       parseNum(r['SPV QDs']),
+  };
+}
+
+// ── DYNAMIC FILTERS ───────────────────────────────────────────────────────────
+function buildDynamicFilters(rows) {
+  // Funnel Stage — always show; populate if column exists
+  const funnelSel = document.getElementById('funnel-filter');
+  if (hasFunnelCol) {
+    const stages = [...new Set(rows.map(r=>r.funnelStage).filter(Boolean))].sort();
+    funnelSel.innerHTML = '<option value="all">All Stages</option>' +
+      stages.map(s=>`<option value="${escHtml(s)}">${escHtml(s)}</option>`).join('');
+  } else {
+    funnelSel.innerHTML = '<option value="all">No funnel data in sheet</option>';
+    funnelSel.disabled = true;
+  }
+
+  // Date hint
+  const hint = document.getElementById('date-hint');
+  hint.textContent = hasDateCol
+    ? `Column: "${dateColName}"`
+    : 'No date column found in sheet';
+
+  // QD grid visibility
+  document.getElementById('qd-grid').style.display = hasQDColumns ? '' : 'none';
+}
+
+// ── FILTERS ───────────────────────────────────────────────────────────────────
+function applyFilters() {
+  filteredRows = allRows.filter(r => {
+    if (activeTeam!=='All' && r.team!==activeTeam) return false;
+    if (activePlatforms.size>0) {
+      const rp=r.platform.toLowerCase();
+      let ok=false;
+      for (const p of activePlatforms) { if(rp.includes(p.toLowerCase())){ok=true;break;} }
+      if (!ok) return false;
+    }
+    if (activeStatus!=='all' && r.statusNorm!==activeStatus) return false;
+    if (activeFunnel!=='all' && r.funnelStage!==activeFunnel) return false;
+    if ((dateFrom||dateTo)&&hasDateCol) {
+      const d=r.dateParsed;
+      if (!d) return false;
+      if (dateFrom&&d<dateFrom) return false;
+      if (dateTo  &&d>dateTo)   return false;
+    }
+    if (searchQuery) {
+      const q=searchQuery.toLowerCase();
+      if (!r.name.toLowerCase().includes(q)&&!r.platform.toLowerCase().includes(q)&&
+          !r.team.toLowerCase().includes(q)&&!r.funnelStage.toLowerCase().includes(q)) return false;
+    }
+    return true;
+  });
+  applySort();
+}
+
+function applySort() {
+  filteredRows.sort((a,b)=>{
+    let av=a[sortCol],bv=b[sortCol];
+    if(typeof av==='string'){av=av.toLowerCase();bv=bv.toLowerCase();}
+    return av<bv?(sortDir==='asc'?-1:1):av>bv?(sortDir==='asc'?1:-1):0;
+  });
+}
+
+// ── KPIs ─────────────────────────────────────────────────────────────────────
+function updateKPIs(rows) {
+  const totalSpend = rows.reduce((s,r)=>s+r.spend,0);
+  const totalBudget= rows.reduce((s,r)=>s+r.budget,0);
+  const totalImpr  = rows.reduce((s,r)=>s+r.impressions,0);
+  const totalReach = rows.reduce((s,r)=>s+r.reach,0);
+  const totalClicks= rows.reduce((s,r)=>s+r.clicks,0);
+  const avgCTR = totalImpr  >0?(totalClicks/totalImpr)*100:0;
+  const avgCPC = totalClicks>0?totalSpend/totalClicks:0;
+  const cpm    = totalImpr  >0?(totalSpend/totalImpr)*1000:0;
+  const active = rows.filter(r=>r.statusNorm==='active').length;
+
+  document.getElementById('kpi-spend').textContent       = fmtMoney(totalSpend);
+  document.getElementById('kpi-spend-sub').textContent   = 'Budget: '+fmtMoney(totalBudget);
+  document.getElementById('kpi-impressions').textContent = fmtNum(totalImpr);
+  document.getElementById('kpi-reach').textContent       = fmtNum(totalReach);
+  document.getElementById('kpi-clicks').textContent      = fmtNum(totalClicks);
+  document.getElementById('kpi-ctr').textContent         = fmtPct(avgCTR);
+  document.getElementById('kpi-cpc').textContent         = fmtMoney(avgCPC);
+  document.getElementById('kpi-cpm').textContent         = fmtMoney(cpm);
+  document.getElementById('kpi-active').textContent      = active;
+
+  if (hasQDColumns) {
+    const setQD=(id,key)=>{
+      const v=rows.reduce((s,r)=>s+(r[key]||0),0);
+      document.getElementById(id).textContent=v>0?fmtNum(v):'—';
+    };
+    setQD('kpi-influenced-qds','influencedQDs');
+    setQD('kpi-growth-qds','growthQDs');
+    setQD('kpi-scale-qds','scaleQDs');
+    setQD('kpi-enterprise-qds','enterpriseQDs');
+    setQD('kpi-spv-qds','spvQDs');
+  }
+}
+
+// ── CHART HELPERS ─────────────────────────────────────────────────────────────
+function groupBy(rows,key,valKey) {
+  const m={};
+  for(const r of rows){const k=r[key]||'Unknown';m[k]=(m[k]||0)+(r[valKey]||0);}
+  return m;
+}
+
+function buildOrUpdateChart(id,cfg) {
+  const canvas=document.getElementById(id);
+  if(!canvas) return;
+  if(charts[id]){charts[id].data=cfg.data;charts[id].options=cfg.options;charts[id].update('none');}
+  else charts[id]=new Chart(canvas.getContext('2d'),cfg);
+}
+
+function showEmpty(wrapId,msg) {
+  const wrap=document.getElementById(wrapId);
+  if(!wrap) return;
+  wrap.innerHTML=`<div class="chart-empty">${msg}</div>`;
+}
+function ensureCanvas(wrapId,canvasId) {
+  const wrap=document.getElementById(wrapId);
+  if(!wrap) return;
+  if(!wrap.querySelector('canvas')) {
+    const c=document.createElement('canvas');c.id=canvasId;wrap.appendChild(c);
+  }
+}
+
+const TICK_OPT = { font:{size:10} };
+const GRID_OPT = { color:'#F0EBF8' };
+
+// ── ALL CHARTS ────────────────────────────────────────────────────────────────
+function updateCharts(rows) {
+  const teams    = Object.keys(TEAM_COLORS);
+  const platSpend= groupBy(rows,'platform','spend');
+  const plats    = Object.keys(platSpend).sort();
+
+  // 1. Spend by Platform — doughnut
+  buildOrUpdateChart('chart-platform-donut',{
+    type:'doughnut',
+    data:{
+      labels:plats,
+      datasets:[{
+        data:plats.map(p=>platSpend[p]),
+        backgroundColor:plats.map(p=>platformColor(p)),
+        borderWidth:2,borderColor:'#fff'
+      }]
+    },
+    options:{responsive:true,maintainAspectRatio:false,cutout:'60%',
+      plugins:{
+        legend:{position:'right',labels:{font:{size:10},padding:10}},
+        tooltip:{callbacks:{label:c=>` ${c.label}: ${fmtMoney(c.raw)}`}}
+      }
+    }
+  });
+
+  // 2. Spend by Platform — line
+  buildOrUpdateChart('chart-spend-trend',{
+    type:'line',
+    data:{
+      labels:plats,
+      datasets:[{label:'Spend',data:plats.map(p=>platSpend[p]),
+        borderColor:'#5B2D8E',backgroundColor:'rgba(91,45,142,.1)',
+        borderWidth:2.5,tension:0.4,fill:true,
+        pointBackgroundColor:'#5B2D8E',pointRadius:4}]
+    },
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false}},
+      scales:{
+        y:{ticks:{callback:v=>fmtMoney(v),...TICK_OPT},grid:GRID_OPT},
+        x:{ticks:TICK_OPT,grid:{display:false}}
+      }
+    }
+  });
+
+  // 3. Budget vs Spend by Team — grouped bar
+  const teamBudget = groupBy(rows,'team','budget');
+  const teamSpend  = groupBy(rows,'team','spend');
+  buildOrUpdateChart('chart-budget-vs-spend',{
+    type:'bar',
+    data:{
+      labels:teams,
+      datasets:[
+        {label:'Budget',data:teams.map(t=>teamBudget[t]||0),
+          backgroundColor:'#E2DFF0',borderColor:'#C4B5FD',borderWidth:1.5,borderRadius:4},
+        {label:'Spend',data:teams.map(t=>teamSpend[t]||0),
+          backgroundColor:teams.map(t=>TEAM_COLORS[t]),
+          borderColor:teams.map(t=>TEAM_COLORS[t]),borderWidth:0,borderRadius:4}
+      ]
+    },
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{labels:{font:{size:10},padding:12}}},
+      scales:{
+        y:{ticks:{callback:v=>fmtMoney(v),...TICK_OPT},grid:GRID_OPT},
+        x:{ticks:TICK_OPT,grid:{display:false}}
+      }
+    }
+  });
+
+  // 4. Impressions by Team — bar
+  const teamImpr = groupBy(rows,'team','impressions');
+  buildOrUpdateChart('chart-team-impressions',{
+    type:'bar',
+    data:{
+      labels:teams,
+      datasets:[{label:'Impressions',data:teams.map(t=>teamImpr[t]||0),
+        backgroundColor:teams.map(t=>TEAM_BG[t]),
+        borderColor:teams.map(t=>TEAM_COLORS[t]),borderWidth:2,borderRadius:6}]
+    },
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false}},
+      scales:{
+        y:{ticks:{callback:v=>fmtNum(v),...TICK_OPT},grid:GRID_OPT},
+        x:{ticks:TICK_OPT,grid:{display:false}}
+      }
+    }
+  });
+
+  // 5. CPC by Platform — horizontal bar
+  const platClicks = groupBy(rows,'platform','clicks');
+  const cpcByPlat  = plats.map(p=>platClicks[p]>0?platSpend[p]/platClicks[p]:0);
+  const platsWithCPC = plats.filter((_,i)=>cpcByPlat[i]>0);
+  const cpcVals      = cpcByPlat.filter(v=>v>0);
+  buildOrUpdateChart('chart-cpc-platform',{
+    type:'bar',
+    data:{
+      labels:platsWithCPC,
+      datasets:[{label:'CPC',data:cpcVals,
+        backgroundColor:platsWithCPC.map(p=>platformColor(p)+'CC'),
+        borderColor:platsWithCPC.map(p=>platformColor(p)),
+        borderWidth:1.5,borderRadius:4}]
+    },
+    options:{responsive:true,maintainAspectRatio:false,
+      indexAxis:'y',
+      plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>` CPC: ${fmtMoney(c.raw)}`}}},
+      scales:{
+        x:{ticks:{callback:v=>fmtMoney(v),...TICK_OPT},grid:GRID_OPT},
+        y:{ticks:TICK_OPT,grid:{display:false}}
+      }
+    }
+  });
+
+  // 6. Funnel Performance — horizontal bar (largest → smallest = natural funnel)
+  const totalImpr   = rows.reduce((s,r)=>s+r.impressions,0);
+  const totalReach  = rows.reduce((s,r)=>s+r.reach,0);
+  const totalClicks = rows.reduce((s,r)=>s+r.clicks,0);
+  const totalQDs    = hasQDColumns ? rows.reduce((s,r)=>s+(r.influencedQDs||0),0) : 0;
+  const funnelStages= ['Impressions','Reach','Clicks'];
+  const funnelVals  = [totalImpr,totalReach,totalClicks];
+  if (hasQDColumns&&totalQDs>0) { funnelStages.push('QDs'); funnelVals.push(totalQDs); }
+  const funnelColors= ['#5B2D8E','#7B4DB0','#9B6DC8','#C4B5FD'];
+  buildOrUpdateChart('chart-funnel',{
+    type:'bar',
+    data:{
+      labels:funnelStages,
+      datasets:[{label:'Volume',data:funnelVals,
+        backgroundColor:funnelColors.slice(0,funnelStages.length),
+        borderRadius:4,borderWidth:0}]
+    },
+    options:{responsive:true,maintainAspectRatio:false,
+      indexAxis:'y',
+      plugins:{
+        legend:{display:false},
+        tooltip:{callbacks:{
+          label:c=>{
+            const pct = totalImpr>0&&c.dataIndex>0
+              ? ` (${((c.raw/totalImpr)*100).toFixed(1)}% of Impressions)`:'';
+            return ` ${fmtNum(c.raw)}${pct}`;
+          }
+        }}
+      },
+      scales:{
+        x:{ticks:{callback:v=>fmtNum(v),...TICK_OPT},grid:GRID_OPT},
+        y:{ticks:TICK_OPT,grid:{display:false}}
+      }
+    }
+  });
+
+  // 7. QDs by Team — vertical bar
+  const qdWrap = document.getElementById('chart-qd-wrap');
+  if (hasQDColumns) {
+    const teamQDs = {};
+    for (const r of rows) {
+      const t=r.team||'Unknown';
+      teamQDs[t]=(teamQDs[t]||0)+(r.influencedQDs||0);
+    }
+    const teamsWithQD = teams.filter(t=>(teamQDs[t]||0)>0);
+    if (teamsWithQD.length===0) {
+      if (qdWrap) qdWrap.innerHTML='<div class="chart-empty">No QD data in current selection</div>';
+    } else {
+      ensureCanvas('chart-qd-wrap','chart-qd-team');
+      buildOrUpdateChart('chart-qd-team',{
+        type:'bar',
+        data:{
+          labels:teams,
+          datasets:[{label:'Influenced QDs',data:teams.map(t=>teamQDs[t]||0),
+            backgroundColor:teams.map(t=>TEAM_BG[t]),
+            borderColor:teams.map(t=>TEAM_COLORS[t]),borderWidth:2,borderRadius:6}]
+        },
+        options:{responsive:true,maintainAspectRatio:false,
+          plugins:{legend:{display:false}},
+          scales:{
+            y:{ticks:TICK_OPT,grid:GRID_OPT},
+            x:{ticks:TICK_OPT,grid:{display:false}}
+          }
+        }
+      });
+    }
+  } else {
+    if (qdWrap) qdWrap.innerHTML='<div class="chart-empty">No QD columns in sheet</div>';
+  }
+
+  // 8. Spend Efficiency (Cost per QD) — horizontal bar
+  const costQDWrap = document.getElementById('chart-cost-qd-wrap');
+  if (hasQDColumns) {
+    const teamQDsForEff={};
+    for (const r of rows){const t=r.team||'Unknown';teamQDsForEff[t]=(teamQDsForEff[t]||0)+(r.influencedQDs||0);}
+    const effTeams = teams.filter(t=>(teamQDsForEff[t]||0)>0&&(teamSpend[t]||0)>0);
+    if (effTeams.length===0) {
+      if (costQDWrap) costQDWrap.innerHTML='<div class="chart-empty">No QD data to calculate efficiency</div>';
+    } else {
+      ensureCanvas('chart-cost-qd-wrap','chart-cost-qd');
+      const effVals = effTeams.map(t=>(teamSpend[t]||0)/(teamQDsForEff[t]||1));
+      buildOrUpdateChart('chart-cost-qd',{
+        type:'bar',
+        data:{
+          labels:effTeams,
+          datasets:[{label:'Cost per QD',data:effVals,
+            backgroundColor:effTeams.map(t=>TEAM_BG[t]),
+            borderColor:effTeams.map(t=>TEAM_COLORS[t]),
+            borderWidth:1.5,borderRadius:4}]
+        },
+        options:{responsive:true,maintainAspectRatio:false,
+          indexAxis:'y',
+          plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>` ${fmtMoney(c.raw)} per QD`}}},
+          scales:{
+            x:{ticks:{callback:v=>fmtMoney(v),...TICK_OPT},grid:GRID_OPT},
+            y:{ticks:TICK_OPT,grid:{display:false}}
+          }
+        }
+      });
+    }
+  } else {
+    if (costQDWrap) costQDWrap.innerHTML='<div class="chart-empty">No QD columns in sheet</div>';
+  }
+
+  // 9. Campaign Status Breakdown — doughnut
+  const statusCount={active:0,paused:0,ended:0,other:0};
+  for(const r of rows) statusCount[r.statusNorm]=(statusCount[r.statusNorm]||0)+1;
+  const total=rows.length||1;
+  buildOrUpdateChart('chart-status',{
+    type:'doughnut',
+    data:{
+      labels:['Active','Paused','Ended','Other'],
+      datasets:[{
+        data:[statusCount.active,statusCount.paused,statusCount.ended,statusCount.other],
+        backgroundColor:['#16A34A','#D97706','#9CA3AF','#D1D5DB'],
+        borderWidth:2,borderColor:'#fff'
+      }]
+    },
+    options:{responsive:true,maintainAspectRatio:false,cutout:'58%',
+      plugins:{
+        legend:{position:'right',labels:{font:{size:10},padding:10}},
+        tooltip:{callbacks:{label:c=>{
+          const pct=((c.raw/total)*100).toFixed(1);
+          return ` ${c.label}: ${c.raw} (${pct}%)`;
+        }}}
+      }
+    }
+  });
+
+  // 10. Spend by Team — simple bar (status section companion)
+  buildOrUpdateChart('chart-team-spend',{
+    type:'bar',
+    data:{
+      labels:teams,
+      datasets:[{label:'Spend',data:teams.map(t=>teamSpend[t]||0),
+        backgroundColor:teams.map(t=>TEAM_BG[t]),
+        borderColor:teams.map(t=>TEAM_COLORS[t]),borderWidth:2,borderRadius:6}]
+    },
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false}},
+      scales:{
+        y:{ticks:{callback:v=>fmtMoney(v),...TICK_OPT},grid:GRID_OPT},
+        x:{ticks:TICK_OPT,grid:{display:false}}
+      }
+    }
+  });
+}
+
+// ── TABLE ─────────────────────────────────────────────────────────────────────
+function renderTable(rows) {
+  document.getElementById('row-count').textContent = rows.length+' campaign'+(rows.length===1?'':'s');
+  const tbody=document.getElementById('table-body');
+  if(!rows.length){
+    tbody.innerHTML='<tr><td colspan="13" class="no-data">No campaigns match the current filters.</td></tr>';
+    return;
+  }
+  tbody.innerHTML=rows.map(r=>{
+    const util    =r.budget>0?(r.spend/r.budget)*100:0;
+    const barColor=util>90?'#DC2626':util>70?'#D97706':'#16A34A';
+    const name    =r.editLink
+      ?`<a href="${escHtml(r.editLink)}" target="_blank" rel="noopener" style="color:var(--vestd-purple);text-decoration:none;font-weight:600">${escHtml(r.name)}</a>`
+      :`<span style="font-weight:600">${escHtml(r.name)}</span>`;
+    const tc=r.team?'team-'+escHtml(r.team):'';
+    return `<tr>
+      <td style="max-width:260px;overflow:hidden;text-overflow:ellipsis">${name}</td>
+      <td><span class="team-badge ${tc}">${escHtml(r.team||'—')}</span></td>
+      <td>${escHtml(r.platform)}</td>
+      <td>${escHtml(r.funnelStage||'—')}</td>
+      <td><span class="status-badge ${statusClass(r.status)}">${escHtml(r.status)}</span></td>
+      <td>${fmtMoney(r.budget)}</td><td>${fmtMoney(r.spend)}</td>
+      <td><div class="util-bar-wrap">
+        <span style="width:34px;text-align:right;font-weight:700">${util.toFixed(0)}%</span>
+        <div class="util-bar-bg"><div class="util-bar-fill" style="width:${Math.min(util,100)}%;background:${barColor}"></div></div>
+      </div></td>
+      <td>${fmtNum(r.impressions)}</td><td>${fmtNum(r.reach)}</td>
+      <td>${fmtNum(r.clicks)}</td><td>${fmtPct(r.ctr)}</td><td>${fmtMoney(r.cpc)}</td>
+    </tr>`;
+  }).join('');
+}
+
+// ── REFRESH ───────────────────────────────────────────────────────────────────
+function refresh() { applyFilters(); updateKPIs(filteredRows); updateCharts(filteredRows); renderTable(filteredRows); }
+
+// ── TOOLTIP SYSTEM ────────────────────────────────────────────────────────────
+const tooltipEl = document.getElementById('kpi-tooltip');
+function initTooltips() {
+  document.querySelectorAll('.kpi-info-icon[data-tooltip]').forEach(icon=>{
+    icon.addEventListener('mouseenter',e=>{tooltipEl.textContent=icon.dataset.tooltip;tooltipEl.style.display='block';positionTip(e);});
+    icon.addEventListener('mousemove',positionTip);
+    icon.addEventListener('mouseleave',()=>tooltipEl.style.display='none');
+  });
+}
+function positionTip(e) {
+  const tw=tooltipEl.offsetWidth,th=tooltipEl.offsetHeight,vw=window.innerWidth,vh=window.innerHeight;
+  let l=e.clientX+14,t=e.clientY-th/2;
+  if(l+tw>vw-12) l=e.clientX-tw-14;
+  if(t<8) t=8; if(t+th>vh-8) t=vh-th-8;
+  tooltipEl.style.left=l+'px'; tooltipEl.style.top=t+'px';
+}
+
+// ── EVENT WIRING ──────────────────────────────────────────────────────────────
+document.querySelectorAll('thead th[data-col]').forEach(th=>{
+  th.addEventListener('click',()=>{
+    const col=th.dataset.col;
+    sortDir=sortCol===col?(sortDir==='asc'?'desc':'asc'):'desc'; sortCol=col;
+    document.querySelectorAll('thead th').forEach(h=>h.classList.remove('sort-asc','sort-desc'));
+    th.classList.add(sortDir==='asc'?'sort-asc':'sort-desc');
+    applySort(); renderTable(filteredRows);
+  });
+});
+
+document.getElementById('team-tabs').addEventListener('click',e=>{
+  const btn=e.target.closest('.tab-btn'); if(!btn) return;
+  document.querySelectorAll('#team-tabs .tab-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active'); activeTeam=btn.dataset.team; refresh();
+});
+
+document.getElementById('platform-tabs').addEventListener('click',e=>{
+  const btn=e.target.closest('.tab-btn'); if(!btn) return;
+  const p=btn.dataset.platform;
+  if(activePlatforms.has(p)){activePlatforms.delete(p);btn.classList.remove('active');}
+  else{activePlatforms.add(p);btn.classList.add('active');}
+  refresh();
+});
+
+document.getElementById('status-filter').addEventListener('change',e=>{activeStatus=e.target.value;refresh();});
+document.getElementById('funnel-filter').addEventListener('change',e=>{activeFunnel=e.target.value;refresh();});
+document.getElementById('date-presets').addEventListener('click',e=>{
+  const btn=e.target.closest('.preset-btn'); if(!btn) return; applyPreset(btn.dataset.preset);
+});
+document.getElementById('date-from').addEventListener('change',e=>{
+  dateFrom=e.target.value?new Date(e.target.value+'T00:00:00'):null;
+  document.querySelectorAll('.preset-btn').forEach(b=>b.classList.remove('active')); refresh();
+});
+document.getElementById('date-to').addEventListener('change',e=>{
+  dateTo=e.target.value?new Date(e.target.value+'T23:59:59'):null;
+  document.querySelectorAll('.preset-btn').forEach(b=>b.classList.remove('active')); refresh();
+});
+document.getElementById('table-search').addEventListener('input',e=>{
+  searchQuery=e.target.value.trim(); applyFilters(); renderTable(filteredRows);
+});
+document.getElementById('clear-filters').addEventListener('click',()=>{
+  activeTeam='All'; activePlatforms.clear(); activeStatus='all'; activeFunnel='all';
+  dateFrom=null; dateTo=null; searchQuery='';
+  document.querySelectorAll('#team-tabs .tab-btn').forEach((b,i)=>b.classList.toggle('active',i===0));
+  document.querySelectorAll('#platform-tabs .tab-btn').forEach(b=>b.classList.remove('active'));
+  ['status-filter','funnel-filter','date-from','date-to','table-search'].forEach(id=>{
+    const el=document.getElementById(id); if(el) el.value='';
+  });
+  document.getElementById('status-filter').value='all';
+  document.getElementById('funnel-filter').value='all';
+  document.querySelectorAll('.preset-btn').forEach(b=>b.classList.toggle('active',b.dataset.preset==='all'));
+  refresh();
+});
+
+// ── LOAD ──────────────────────────────────────────────────────────────────────
+async function load() {
+  try {
+    const raw=await fetchData();
+    if(raw.length>0) detectColumns(Object.keys(raw[0]));
+    allRows=raw.map(normaliseRow).filter(r=>r.name||r.platform);
+    allRows.forEach(r=>{r.util=r.budget>0?(r.spend/r.budget)*100:0;r.dateParsed=parseDate(r.dateStr);});
+    buildDynamicFilters(allRows);
+    initTooltips();
+    document.getElementById('last-updated').textContent=
+      'Updated '+new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});
+    refresh();
+    document.getElementById('loading').classList.add('hidden');
+  } catch(err) {
+    console.error('Load failed:',err);
+    document.getElementById('loading').innerHTML=
+      `<div style="text-align:center"><p style="color:#DC2626;font-size:14px;margin-bottom:8px">Failed to load data.</p>
+       <p style="color:var(--muted);font-size:12px">Retrying in 15 seconds…</p></div>`;
+    setTimeout(load,15000);
+  }
+}
+
+load();
+setInterval(load,REFRESH_MS);
+</script>
+</body>
+</html>
