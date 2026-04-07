@@ -472,8 +472,13 @@
 
 <script>
 // ── CONFIG ───────────────────────────────────────────────────────────────────
-const CSV_URL    = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSTlCKrr6IOowoptr0BQol5Tdbir3zwgXKb9VEgmRnRFS7drFDiX5RmMHmQ2sTsow8Cti-njx-rMkIP/pub?gid=1210805509&single=true&output=csv';
-const PROXY      = 'https://corsproxy.io/?';
+const DATA_SOURCES = [
+  {
+    name: "LinkedIn",
+    url: "https://corsproxy.io/?" + encodeURIComponent("https://docs.google.com/spreadsheets/d/e/2PACX-1vSTlCKrr6IOowoptr0BQol5Tdbir3zwgXKb9VEgmRnRFS7drFDiX5RmMHmQ2sTsow8Cti-njx-rMkIP/pub?gid=1210805509&single=true&output=csv")
+  },
+  // { name: "Google Ads", url: "https://corsproxy.io/?" + encodeURIComponent("ADD_GOOGLE_ADS_CSV_URL_HERE") },
+];
 const REFRESH_MS = 5 * 60 * 1000;
 
 // ── STATE ────────────────────────────────────────────────────────────────────
@@ -595,10 +600,13 @@ function applyPreset(key){
 
 // ── FETCH ────────────────────────────────────────────────────────────────────
 async function fetchData(){
-  const res=await fetch(PROXY+encodeURIComponent(CSV_URL));
-  const text=await res.text();
-  const{data}=Papa.parse(text,{header:true,skipEmptyLines:true});
-  return data;
+  const results=await Promise.all(DATA_SOURCES.map(async src=>{
+    const res=await fetch(src.url);
+    const text=await res.text();
+    const{data}=Papa.parse(text,{header:true,skipEmptyLines:true});
+    return data.map(r=>({...r,_source:src.name}));
+  }));
+  return results.flat();
 }
 function detectColumns(keys){
   hasQDColumns=keys.some(k=>/QD/i.test(k));
