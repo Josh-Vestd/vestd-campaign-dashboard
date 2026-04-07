@@ -587,6 +587,7 @@
             <th data-col="status">Status</th>
             <th data-col="budget" class="sort-desc">Budget</th>
             <th data-col="spend">Spend</th>
+            <th data-col="budgetRemaining">Budget Remaining</th>
             <th data-col="util">Utilisation %</th>
             <th data-col="impressions">Impressions</th>
             <th data-col="reach">Reach</th>
@@ -600,7 +601,7 @@
           </tr>
         </thead>
         <tbody id="table-body">
-          <tr><td colspan="17" class="no-data">Loading…</td></tr>
+          <tr><td colspan="18" class="no-data">Loading…</td></tr>
         </tbody>
       </table>
     </div>
@@ -823,12 +824,52 @@ function applyFilters(){
   });
   applySort();
 }
-function applySort(){
-  filteredRows.sort((a,b)=>{
+function sortRows(arr){
+  arr.sort((a,b)=>{
     let av=a[sortCol],bv=b[sortCol];
     if(typeof av==='string'){av=av.toLowerCase();bv=bv.toLowerCase();}
     return av<bv?(sortDir==='asc'?-1:1):av>bv?(sortDir==='asc'?1:-1):0;
   });
+}
+function applySort(){ sortRows(filteredRows); }
+
+// ── TABLE AGGREGATION ─────────────────────────────────────────────────────────
+function aggregateForTable(rows){
+  const map=new Map();
+  for(const r of rows){
+    const key=r.name||r.editLink||r.platform; // unique key per campaign
+    if(!map.has(key)){
+      map.set(key,{
+        name:r.name, platform:r.platform, team:r.team,
+        status:r.status, statusNorm:r.statusNorm,
+        funnelStage:r.funnelStage, editLink:r.editLink,
+        budget:r.budget,
+        spend:0, impressions:0, clicks:0, reach:0,
+        influencedQDs:0, growthQDs:0, scaleQDs:0, enterpriseQDs:0, spvQDs:0,
+        util:0, ctr:0, cpc:0, budgetRemaining:0,
+      });
+    }
+    const a=map.get(key);
+    a.spend        += r.spend;
+    a.impressions  += r.impressions;
+    a.clicks       += r.clicks;
+    a.reach        += r.reach;
+    a.influencedQDs+= r.influencedQDs;
+    a.growthQDs    += r.growthQDs;
+    a.scaleQDs     += r.scaleQDs;
+    a.enterpriseQDs+= r.enterpriseQDs;
+    a.spvQDs       += r.spvQDs;
+  }
+  const result=[];
+  for(const a of map.values()){
+    // Derive CTR/CPC from aggregated totals (more accurate than averaging rates)
+    a.ctr = a.impressions>0 ? (a.clicks/a.impressions)*100 : 0;
+    a.cpc = a.clicks>0     ? a.spend/a.clicks              : 0;
+    a.util= a.budget>0     ? (a.spend/a.budget)*100        : 0;
+    a.budgetRemaining = a.budget - a.spend;
+    result.push(a);
+  }
+  return result;
 }
 
 // ── KPIs ─────────────────────────────────────────────────────────────────────
@@ -1062,13 +1103,14 @@ function renderTable(rows){
   document.getElementById('row-count').textContent=rows.length+' campaign'+(rows.length===1?'':'s');
   const tbody=document.getElementById('table-body');
   if(!rows.length){
-    tbody.innerHTML='<tr><td colspan="17" class="no-data">No campaigns match the current filters.</td></tr>';
+    tbody.innerHTML='<tr><td colspan="18" class="no-data">No campaigns match the current filters.</td></tr>';
     return;
   }
   tbody.innerHTML=rows.map(r=>{
-    const util=r.budget>0?(r.spend/r.budget)*100:0;
-    // Utilisation bar: accent for good, amber for high, red for over
+    const util=r.util;
     const barColor=util>100?'#DC2626':util>85?'#D97706':ACCENT;
+    const remaining=r.budgetRemaining;
+    const remainColor=remaining<0?'color:#DC2626':'';
     const name=r.editLink
       ?`<a href="${escHtml(r.editLink)}" target="_blank" rel="noopener" style="color:var(--brand);text-decoration:none;font-weight:600">${escHtml(r.name)}</a>`
       :`<span style="font-weight:600">${escHtml(r.name)}</span>`;
@@ -1081,6 +1123,7 @@ function renderTable(rows){
       <td><span class="status-badge ${statusClass(r.status)}">${escHtml(r.status)}</span></td>
       <td>${fmtMoney(r.budget)}</td>
       <td>${fmtMoney(r.spend)}</td>
+      <td style="${remainColor}">${r.budget>0?fmtMoney(remaining):'—'}</td>
       <td><div class="util-bar-wrap">
         <span style="width:34px;text-align:right;font-weight:700">${util.toFixed(0)}%</span>
         <div class="util-bar-bg"><div class="util-bar-fill" style="width:${Math.min(util,100)}%;background:${barColor}"></div></div>
@@ -1099,7 +1142,14 @@ function renderTable(rows){
 }
 
 // ── REFRESH ───────────────────────────────────────────────────────────────────
-function refresh(){applyFilters();updateKPIs(filteredRows);updateCharts(filteredRows);renderTable(filteredRows);}
+function refresh(){
+  applyFilters();
+  updateKPIs(filteredRows);
+  updateCharts(filteredRows);
+  const tableRows=aggregateForTable(filteredRows);
+  sortRows(tableRows);
+  renderTable(tableRows);
+}
 
 // ── TOOLTIP ───────────────────────────────────────────────────────────────────
 const tooltipEl=document.getElementById('kpi-tooltip');
@@ -1125,7 +1175,7 @@ document.querySelectorAll('thead th[data-col]').forEach(th=>{
     sortDir=sortCol===col?(sortDir==='asc'?'desc':'asc'):'desc';sortCol=col;
     document.querySelectorAll('thead th').forEach(h=>h.classList.remove('sort-asc','sort-desc'));
     th.classList.add(sortDir==='asc'?'sort-asc':'sort-desc');
-    applySort();renderTable(filteredRows);
+    const tableRows=aggregateForTable(filteredRows);sortRows(tableRows);renderTable(tableRows);
   });
 });
 document.getElementById('team-tabs').addEventListener('click',e=>{
@@ -1154,7 +1204,7 @@ document.getElementById('date-to').addEventListener('change',e=>{
   document.querySelectorAll('.preset-btn').forEach(b=>b.classList.remove('active'));refresh();
 });
 document.getElementById('table-search').addEventListener('input',e=>{
-  searchQuery=e.target.value.trim();applyFilters();renderTable(filteredRows);
+  searchQuery=e.target.value.trim();applyFilters();const tR=aggregateForTable(filteredRows);sortRows(tR);renderTable(tR);
 });
 document.getElementById('clear-filters').addEventListener('click',()=>{
   activeTeam='All';activePlatforms.clear();activeStatus='all';activeFunnel='all';
