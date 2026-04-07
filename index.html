@@ -207,6 +207,60 @@
     @keyframes spin { to { transform:rotate(360deg); } }
     .loading-overlay.hidden { display:none; }
 
+    /* ── LOGIN OVERLAY ── */
+    #login-overlay {
+      position: fixed; inset: 0; z-index: 1000;
+      background: #f8f7f7;
+      display: flex; align-items: center; justify-content: center;
+      font-family: 'Inter Tight', -apple-system, BlinkMacSystemFont, sans-serif;
+    }
+    #login-overlay.hidden { display: none; }
+    .login-card {
+      width: 100%; max-width: 380px;
+      background: #fff;
+      border-radius: 16px;
+      box-shadow: 0 4px 32px rgba(90,0,35,.12), 0 1px 4px rgba(90,0,35,.08);
+      padding: 40px 36px 36px;
+      display: flex; flex-direction: column; align-items: center; gap: 0;
+    }
+    .login-logo { margin-bottom: 24px; }
+    .login-title {
+      font-size: 15px; font-weight: 600; color: #1a0a0f;
+      margin-bottom: 6px; text-align: center;
+    }
+    .login-subtitle {
+      font-size: 12px; color: #7a6068; text-align: center; margin-bottom: 28px;
+    }
+    .login-input-wrap { width: 100%; position: relative; margin-bottom: 12px; }
+    .login-input {
+      width: 100%; padding: 11px 14px;
+      border: 1.5px solid #ede9e8; border-radius: 8px;
+      font-family: inherit; font-size: 14px; color: #1a0a0f;
+      outline: none; background: #faf9f9;
+      transition: border-color .15s;
+    }
+    .login-input:focus { border-color: #5a0023; background: #fff; }
+    .login-input.error { border-color: #DC2626; }
+    .login-btn {
+      width: 100%; padding: 11px;
+      background: #5a0023; color: #fff;
+      border: none; border-radius: 8px;
+      font-family: inherit; font-size: 14px; font-weight: 600;
+      cursor: pointer; transition: background .15s;
+    }
+    .login-btn:hover { background: #3d0018; }
+    .login-btn:active { background: #2a000f; }
+    .login-error {
+      font-size: 12px; color: #DC2626; text-align: center;
+      margin-top: 10px; min-height: 18px;
+      opacity: 0; transition: opacity .2s;
+    }
+    .login-error.visible { opacity: 1; }
+    .login-note {
+      font-size: 11px; color: #b0a0a6; text-align: center; margin-top: 20px;
+      line-height: 1.5;
+    }
+
     /* ── DEBUG PANEL ── */
     #debug-panel {
       margin: 16px 24px 0;
@@ -240,6 +294,36 @@
   </style>
 </head>
 <body>
+
+<!-- Login overlay -->
+<div id="login-overlay">
+  <div class="login-card">
+    <div class="login-logo">
+      <!-- Vestd logo — chevron teal, wordmark dark -->
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 355.11" height="40" aria-label="Vestd">
+        <defs><style>.ll1{fill:#1a0a0f;stroke-width:0}.ll2{fill:#00fccc;stroke-width:0}</style></defs>
+        <path class="ll2" d="M342.16,10.9l-.94-.53c-11.92-6.78-25.44-10.36-39.1-10.36-28.45,0-54.84,15.35-68.89,40.05l-42.13,74.07-42.13-74.07C134.93,15.35,108.53,0,80.08,0c-13.65,0-27.17,3.58-39.07,10.35l-.98.56C2.07,32.5-11.25,80.95,10.34,118.9l111.56,196.16c14.05,24.71,40.45,40.05,68.89,40.05.1,0,.21,0,.31,0s.2,0,.31,0h0c28.44,0,54.84-15.35,68.89-40.05l111.57-196.16c21.59-37.95,8.27-86.4-29.71-108ZM56.51,39.96l.99-.56c6.9-3.93,14.71-6.01,22.58-6.01,16.46,0,31.73,8.88,39.86,23.17l51.95,91.33-50.23,88.32c-1.07,1.88-2.03,3.79-2.93,5.71L39.37,102.39c-12.49-21.94-4.78-49.96,17.14-62.43ZM214.33,315.17l-.95.54c-6.81,3.87-14.51,5.93-22.29,5.99-7.77-.05-15.47-2.12-22.27-5.98l-.97-.55c-21.95-12.48-29.65-40.5-17.17-62.45l40.42-71.05,40.41,71.05c12.48,21.95,4.78,49.96-17.18,62.45ZM342.84,102.39l-79.36,139.54c-.9-1.92-1.86-3.84-2.92-5.71l-50.23-88.32,51.94-91.33c8.12-14.29,23.4-23.17,39.86-23.17,7.88,0,15.69,2.08,22.61,6.02l.94.53c21.95,12.49,29.65,40.5,17.17,62.45Z"/>
+        <path class="ll1" d="M468.22,148.75c-.6-1.79-.9-3.25-.9-5.04,0-7.72,6.52-15.42,15.14-15.42,6.22,0,12.16,3.55,14.53,10.07l32.34,96.99,29.96-96.69c2.09-6.23,8.01-10.37,14.27-10.37,7.98,0,15.69,6.52,15.69,15.42,0,1.47-.29,3.25-.86,4.76l-42.15,124.02c-2.36,7.08-8.88,12.14-16.6,12.14s-14.53-6.53-16.32-11.58l-45.08-124.29Z"/>
+        <path class="ll1" d="M634.73,220.83c0,12.17,2.08,20.18,5.91,25.54,5.07,6.52,12.77,10.09,22.86,10.09,11.27,0,21.94-3.29,32.03-7.72,2.07-.9,4.17-1.5,6.22-1.5,7.44,0,14.56,6.23,14.56,13.95,0,5.65-2.39,10.7-7.72,13.34-14.24,6.83-29.37,10.1-45.09,10.1-17.21,0-32.03-5.64-43.01-16.61-10.7-10.7-16.34-25.52-16.34-43.05v-37.35c0-17.21,5.65-32.05,16.34-42.72,10.98-10.98,25.8-16.6,43.01-16.6s32.34,5.62,43.01,16.6c10.69,10.68,16.6,25.52,16.6,42.72v13.95c0,10.67-8.59,19.25-19.28,19.25h-69.1ZM692.56,192.66c0-24.61-10.06-36.19-29.06-36.19s-28.77,11.28-28.77,36.19h57.83Z"/>
+        <path class="ll1" d="M772.24,213.73c-16.01-5.93-28.46-18.39-28.46-40.66,0-26.11,21.62-44.78,51.32-44.78,20.15,0,30.56,2.95,40.35,7.41,5.92,2.38,9.78,7.71,9.78,13.94,0,7.73-6.22,14.24-14.23,14.24-2.08,0-5.05-.59-7.12-1.48-7.42-3.56-19.58-5.93-29.38-5.93-12.16,0-20.16,5.93-20.16,16.02,0,7.7,5.92,12.45,12.15,14.53l29.08,9.51c19.58,6.52,31.45,19.87,31.45,41.55,0,26.08-21.07,46.56-52.81,46.56-17.49,0-31.74-3.27-42.72-8.31-5.62-2.66-9.2-7.7-9.2-13.63,0-7.73,6.52-14.85,14.84-14.85,2.08,0,4.73.9,6.81,1.77,8.01,4.17,17.81,6.85,30.87,6.85,14.21,0,21.65-5.36,21.65-15.45,0-10.94-8.9-14.53-19.89-18.39l-24.32-8.88Z"/>
+        <path class="ll1" d="M870.11,86.16c0-8.6,6.81-15.44,15.4-15.44s15.14,6.84,15.14,15.44v45.08h28.76c8.63,0,15.45,6.23,15.45,14.55,0,8.89-6.54,14.83-15.45,14.83h-28.76v77.44c0,11.24,5.94,18.39,13.66,18.39,8.6,0,10.09-2.39,15.74-2.39,7.38,0,14.82,5.33,14.82,14.23,0,7.42-5.65,13.06-13.06,14.56-5.93,1.16-11.58,1.77-17.49,1.77-24.32,0-44.19-19-44.19-46.27V86.16Z"/>
+        <path class="ll1" d="M961.04,187.62c0-17.21,5.36-32.33,16.02-43.02,10.98-10.97,26.09-16.31,43.3-16.31,10.09,0,21.08,3.55,29.09,7.7v-49.83c0-8.6,6.5-15.44,15.14-15.44s15.42,6.84,15.42,15.44v172.66c0,8.31-5.33,15.42-13.06,18.1-14.82,5.03-30.56,7.71-46.59,7.71-17.21,0-32.02-5.64-43-16.61-10.67-10.7-16.32-25.52-16.32-43.05v-37.35ZM1049.45,167.16c-8.02-6.83-18.39-10.69-29.09-10.69-18.1,0-28.76,10.69-28.76,28.79v42.43c0,18.4,10.66,28.77,28.76,28.77,10.09,0,19.89-1.21,29.09-3.88v-85.43Z"/>
+      </svg>
+    </div>
+    <div class="login-title">Campaign Performance Dashboard</div>
+    <div class="login-subtitle">Enter the access password to continue</div>
+    <div class="login-input-wrap">
+      <input type="password" id="login-password" class="login-input"
+        placeholder="Password" autocomplete="current-password" />
+    </div>
+    <button class="login-btn" id="login-btn">Enter</button>
+    <div class="login-error" id="login-error">Incorrect password, please try again</div>
+    <div class="login-note">
+      This dashboard is for internal use only.<br>
+      Client-side access control — not cryptographically secure.
+    </div>
+  </div>
+</div>
 
 <div id="kpi-tooltip"></div>
 
@@ -1156,8 +1240,45 @@ async function load(){
   }
 }
 
-load();
-setInterval(load,REFRESH_MS);
+// ── LOGIN ─────────────────────────────────────────────────────────────────────
+(function(){
+  const PASS = 'vestd2025';
+  const SESSION_KEY = 'vd_auth';
+  const overlay = document.getElementById('login-overlay');
+  const input   = document.getElementById('login-password');
+  const btn     = document.getElementById('login-btn');
+  const errMsg  = document.getElementById('login-error');
+
+  function unlock(){
+    sessionStorage.setItem(SESSION_KEY,'1');
+    overlay.classList.add('hidden');
+    load();
+    setInterval(load, REFRESH_MS);
+  }
+
+  function attempt(){
+    if(input.value === PASS){
+      unlock();
+    } else {
+      input.classList.add('error');
+      errMsg.classList.add('visible');
+      input.value = '';
+      input.focus();
+      setTimeout(()=>{ input.classList.remove('error'); }, 1200);
+    }
+  }
+
+  if(sessionStorage.getItem(SESSION_KEY)==='1'){
+    overlay.classList.add('hidden');
+    load();
+    setInterval(load, REFRESH_MS);
+  } else {
+    input.addEventListener('keydown', e=>{ if(e.key==='Enter') attempt(); });
+    btn.addEventListener('click', attempt);
+    input.addEventListener('input', ()=>{ errMsg.classList.remove('visible'); });
+    input.focus();
+  }
+})();
 </script>
 </body>
 </html>
