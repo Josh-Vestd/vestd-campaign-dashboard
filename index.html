@@ -206,6 +206,37 @@
     .spinner { width:38px; height:38px; border:3px solid var(--border); border-top-color:var(--brand); border-radius:50%; animation:spin .8s linear infinite; }
     @keyframes spin { to { transform:rotate(360deg); } }
     .loading-overlay.hidden { display:none; }
+
+    /* ── DEBUG PANEL ── */
+    #debug-panel {
+      margin: 16px 24px 0;
+      background: #1a0a0f; color: #00fccc;
+      font-family: monospace; font-size: 11px;
+      border-radius: 8px; border: 1px solid #5a0023;
+      overflow: hidden;
+    }
+    #debug-panel summary {
+      cursor: pointer; padding: 8px 14px;
+      font-weight: 700; background: #2a1018;
+      display: flex; align-items: center; gap: 8px;
+      list-style: none; user-select: none;
+    }
+    #debug-panel summary::-webkit-details-marker { display: none; }
+    #debug-panel summary .dbg-badge {
+      background: #5a0023; color: #00fccc;
+      border-radius: 4px; padding: 1px 6px; font-size: 10px;
+    }
+    #debug-panel summary .dbg-status {
+      margin-left: auto; font-size: 10px; opacity: .75;
+    }
+    #debug-panel .dbg-body { padding: 10px 14px 12px; display: grid; gap: 10px; }
+    #debug-panel .dbg-section { color: #7a6068; font-size: 10px; text-transform: uppercase; letter-spacing: .05em; margin-bottom: 4px; }
+    #debug-panel .dbg-cols { color: #fff; word-break: break-all; line-height: 1.7; }
+    #debug-panel .dbg-col-ok  { color: #00fccc; }
+    #debug-panel .dbg-col-warn { color: #D97706; }
+    #debug-panel table { border-collapse: collapse; font-size: 10px; width: 100%; }
+    #debug-panel th { background: #2a1018; color: #00fccc; padding: 3px 8px; text-align: left; white-space: nowrap; }
+    #debug-panel td { color: #e8d8dc; padding: 3px 8px; border-top: 1px solid #2a1018; max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   </style>
 </head>
 <body>
@@ -295,6 +326,29 @@
 
 <!-- Main -->
 <main>
+
+  <!-- ── DEBUG PANEL (temporary) ── -->
+  <details id="debug-panel" open>
+    <summary>
+      <span class="dbg-badge">DEBUG</span>
+      Data diagnostics — remove once confirmed working
+      <span class="dbg-status" id="dbg-status">waiting…</span>
+    </summary>
+    <div class="dbg-body">
+      <div>
+        <div class="dbg-section">Fetch result</div>
+        <div id="dbg-fetch" class="dbg-cols">—</div>
+      </div>
+      <div>
+        <div class="dbg-section">Column headers detected (<span id="dbg-col-count">0</span> columns)</div>
+        <div id="dbg-cols" class="dbg-cols">—</div>
+      </div>
+      <div>
+        <div class="dbg-section">First 3 raw rows</div>
+        <div style="overflow-x:auto"><table id="dbg-table"><thead></thead><tbody></tbody></table></div>
+      </div>
+    </div>
+  </details>
 
   <!-- KPI Row 1: Core metrics -->
   <div class="kpi-grid">
@@ -623,7 +677,7 @@ function normaliseRow(r){
     status:       (r['Campaign status']||'').trim(),
     statusNorm:   normaliseStatus(r['Campaign status']),
     editLink:     (r['Campaign edit link']||'').trim(),
-    budget:       parseMoney(r['Campaign total budget']),
+    budget:       parseMoney(r['Campaign total budget']||r['Campaign group total budget']),
     spend:        parseMoney(r['Total Spent']),
     reach:        parseNum(r['Reach']),
     impressions:  parseNum(r['Impressions']),
@@ -634,7 +688,7 @@ function normaliseRow(r){
     funnelStage:  (r['Funnel stage']||r['Funnel Stage']||'').trim(),
     dateStr:      dateColName?(r[dateColName]||'').trim():'',
     dateParsed:   null,
-    influencedQDs:parseNum(r['Influenced QDs']),
+    influencedQDs:parseNum(r['Influenced QDs ']||r['Influenced QDs']),  // trailing space in actual header
     growthQDs:    parseNum(r['Growth QDs']),
     scaleQDs:     parseNum(r['Scale QDs']),
     enterpriseQDs:parseNum(r['Enterprise QDs']),
@@ -1030,6 +1084,49 @@ document.getElementById('clear-filters').addEventListener('click',()=>{
   refresh();
 });
 
+// ── DEBUG PANEL ───────────────────────────────────────────────────────────────
+const EXPECTED_COLS = ['Platform','Team','Date','Campaign name','Campaign status',
+  'Campaign edit link','Campaign total budget','Campaign group total budget',
+  'Total Spent','Reach','Impressions','Clicks','CPC','CTR','Funnel stage',
+  'Influenced QDs ','Growth QDs','Scale QDs','Enterprise QDs','SPV QDs'];
+
+function populateDebugPanel(raw, normalised){
+  const panel = document.getElementById('debug-panel');
+  if(!panel) return;
+
+  // Status badge
+  document.getElementById('dbg-status').textContent =
+    `${raw.length} raw rows → ${normalised.length} normalised`;
+
+  // Fetch result
+  const sources = DATA_SOURCES.map(s=>s.name).join(', ');
+  document.getElementById('dbg-fetch').innerHTML =
+    `<span style="color:#00fccc">✓ Success</span> — sources: <strong>${escHtml(sources)}</strong> — ` +
+    `${raw.length} rows parsed`;
+
+  // Columns
+  const keys = raw.length ? Object.keys(raw[0]).filter(k=>k!=='_source') : [];
+  document.getElementById('dbg-col-count').textContent = keys.length;
+  document.getElementById('dbg-cols').innerHTML = keys.map(k=>{
+    const inExpected = EXPECTED_COLS.some(e=>e.trim()===k.trim());
+    const hasSpace = k !== k.trim();
+    const cls = hasSpace ? 'dbg-col-warn' : (inExpected ? 'dbg-col-ok' : '');
+    const label = hasSpace ? `[${escHtml(JSON.stringify(k))}] ⚠ trailing space` : escHtml(k);
+    return `<span class="${cls}" title="${escHtml(k)}">${label}</span>`;
+  }).join(' &nbsp;·&nbsp; ');
+
+  // First 3 rows table
+  const sample = raw.slice(0,3);
+  if(!sample.length) return;
+  const tHead = document.querySelector('#dbg-table thead');
+  const tBody = document.querySelector('#dbg-table tbody');
+  const cols = keys;
+  tHead.innerHTML = '<tr>' + cols.map(c=>`<th title="${escHtml(c)}">${escHtml(c)}</th>`).join('') + '</tr>';
+  tBody.innerHTML = sample.map(row=>
+    '<tr>' + cols.map(c=>`<td title="${escHtml(row[c]||'')}">${escHtml(row[c]||'—')}</td>`).join('') + '</tr>'
+  ).join('');
+}
+
 // ── LOAD ──────────────────────────────────────────────────────────────────────
 async function load(){
   try{
@@ -1038,6 +1135,7 @@ async function load(){
     allRows=raw.map(normaliseRow).filter(r=>r.name||r.platform);
     allRows.forEach(r=>{r.util=r.budget>0?(r.spend/r.budget)*100:0;r.dateParsed=parseDate(r.dateStr);});
     buildDynamicFilters(allRows);
+    populateDebugPanel(raw, allRows);
     initTooltips();
     document.getElementById('last-updated').textContent=
       'Updated '+new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});
@@ -1045,6 +1143,10 @@ async function load(){
     document.getElementById('loading').classList.add('hidden');
   }catch(err){
     console.error('Load failed:',err);
+    const dbgFetch=document.getElementById('dbg-fetch');
+    if(dbgFetch) dbgFetch.innerHTML=`<span style="color:#DC2626">✗ Failed</span> — ${escHtml(String(err))}`;
+    const dbgStatus=document.getElementById('dbg-status');
+    if(dbgStatus) dbgStatus.textContent='error';
     document.getElementById('loading').innerHTML=
       `<div style="text-align:center;font-family:'Inter Tight',sans-serif">
         <p style="color:#DC2626;font-size:14px;margin-bottom:8px">Failed to load data.</p>
