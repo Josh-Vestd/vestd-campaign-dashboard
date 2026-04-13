@@ -262,6 +262,20 @@
     .ai-shimmer > div:nth-child(1){width:100%}
     .ai-shimmer > div:nth-child(2){width:82%}
     .ai-shimmer > div:nth-child(3){width:65%}
+    .ai-key-form { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+    .ai-key-input {
+      flex:1; min-width:200px; padding:8px 12px; border:1.5px solid var(--border);
+      border-radius:8px; font-family:inherit; font-size:12px; color:var(--text);
+      background:#faf9f9; outline:none; transition:border-color .15s;
+    }
+    .ai-key-input:focus { border-color:var(--brand); }
+    .ai-key-submit {
+      padding:8px 14px; background:var(--brand); color:#fff; border:none;
+      border-radius:8px; font-family:inherit; font-size:12px; font-weight:600;
+      cursor:pointer; transition:background .15s; white-space:nowrap;
+    }
+    .ai-key-submit:hover { background:var(--brand-dark); }
+    .ai-key-note { font-size:11px; color:var(--muted); margin-top:6px; }
 
     /* ── LOGIN OVERLAY ── */
     #login-overlay {
@@ -505,10 +519,19 @@
   <div class="ai-card" id="ai-commentary-card" style="margin-top:20px">
     <div class="ai-card-header">
       <div class="ai-card-title"><span class="ai-icon">✦</span> AI Campaign Commentary</div>
-      <button class="ai-regen-btn" id="ai-regen-btn" onclick="generateAICommentary(true)">↻ Regenerate</button>
+      <div style="display:flex;gap:8px;align-items:center">
+        <button class="ai-regen-btn" id="ai-key-clear-btn" onclick="clearAIKey()" style="display:none" title="Change API key">⌫ Key</button>
+        <button class="ai-regen-btn" id="ai-regen-btn" onclick="generateAICommentary(true)" style="display:none">↻ Regenerate</button>
+      </div>
     </div>
     <div class="ai-card-body" id="ai-card-body">
-      <div class="ai-shimmer"><div></div><div></div><div></div></div>
+      <div id="ai-key-form-wrap">
+        <div class="ai-key-form">
+          <input type="password" class="ai-key-input" id="ai-key-input" placeholder="Paste your Anthropic API key (sk-ant-…)" autocomplete="off" />
+          <button class="ai-key-submit" id="ai-key-submit">Generate ✦</button>
+        </div>
+        <div class="ai-key-note">Stored in sessionStorage only — never sent to GitHub or any server.</div>
+      </div>
     </div>
     <div class="ai-card-footer">
       <span class="ai-ts" id="ai-ts"></span>
@@ -1359,16 +1382,61 @@ function renderSVGFunnel(rows){
 }
 
 // ── AI COMMENTARY ────────────────────────────────────────────────────────────
+const AI_KEY_SESSION = 'vd_ai_key';
+
+function getAIKey(){
+  const stored=sessionStorage.getItem(AI_KEY_SESSION);
+  if(stored) return stored;
+  if(CONFIG.anthropicApiKey&&!CONFIG.anthropicApiKey.startsWith('PASTE')) return CONFIG.anthropicApiKey;
+  return null;
+}
+
+function showAIKeyForm(){
+  const body=document.getElementById('ai-card-body');
+  const regenBtn=document.getElementById('ai-regen-btn');
+  const clearBtn=document.getElementById('ai-key-clear-btn');
+  if(body) body.innerHTML=`<div id="ai-key-form-wrap">
+    <div class="ai-key-form">
+      <input type="password" class="ai-key-input" id="ai-key-input" placeholder="Paste your Anthropic API key (sk-ant-…)" autocomplete="off" />
+      <button class="ai-key-submit" id="ai-key-submit">Generate ✦</button>
+    </div>
+    <div class="ai-key-note">Stored in sessionStorage only — never sent to GitHub or any server.</div>
+  </div>`;
+  if(regenBtn) regenBtn.style.display='none';
+  if(clearBtn) clearBtn.style.display='none';
+  wireKeyForm();
+}
+
+function wireKeyForm(){
+  const input=document.getElementById('ai-key-input');
+  const submit=document.getElementById('ai-key-submit');
+  if(!input||!submit) return;
+  const go=()=>{
+    const k=input.value.trim();
+    if(!k) return;
+    sessionStorage.setItem(AI_KEY_SESSION, k);
+    generateAICommentary(true);
+  };
+  submit.addEventListener('click', go);
+  input.addEventListener('keydown', e=>{ if(e.key==='Enter') go(); });
+  input.focus();
+}
+
+function clearAIKey(){
+  sessionStorage.removeItem(AI_KEY_SESSION);
+  showAIKeyForm();
+}
+
 async function generateAICommentary(force){
   const body=document.getElementById('ai-card-body');
   const tsEl=document.getElementById('ai-ts');
-  const btn=document.getElementById('ai-regen-btn');
+  const regenBtn=document.getElementById('ai-regen-btn');
+  const clearBtn=document.getElementById('ai-key-clear-btn');
   if(!body) return;
-  if(!CONFIG.anthropicApiKey||CONFIG.anthropicApiKey.startsWith('PASTE')){
-    body.innerHTML='<span style="color:var(--muted);font-style:italic">Add your Anthropic API key in the CONFIG object to enable AI commentary.</span>';
-    return;
-  }
-  if(btn) btn.disabled=true;
+  const apiKey=getAIKey();
+  if(!apiKey){ showAIKeyForm(); return; }
+  if(regenBtn){ regenBtn.style.display=''; regenBtn.disabled=true; }
+  if(clearBtn) clearBtn.style.display='';
   body.innerHTML='<div class="ai-shimmer"><div></div><div></div><div></div></div>';
   const totalSpend=filteredRows.reduce((s,r)=>s+r.spend,0);
   const totalImpr=filteredRows.reduce((s,r)=>s+r.impressions,0);
@@ -1383,7 +1451,7 @@ async function generateAICommentary(force){
     const res=await fetch('https://api.anthropic.com/v1/messages',{
       method:'POST',
       headers:{
-        'x-api-key':CONFIG.anthropicApiKey,
+        'x-api-key':apiKey,
         'anthropic-version':'2023-06-01',
         'anthropic-dangerous-allow-browser':'true',
         'content-type':'application/json',
@@ -1397,7 +1465,7 @@ async function generateAICommentary(force){
   }catch(e){
     body.innerHTML='<span style="color:#DC2626">Failed to generate commentary. Check your API key and network.</span>';
   }finally{
-    if(btn) btn.disabled=false;
+    if(regenBtn) regenBtn.disabled=false;
   }
 }
 
@@ -1535,7 +1603,7 @@ async function load(){
     document.getElementById('last-updated').textContent=
       'Updated '+new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});
     refresh();
-    if(!aiLoaded){ aiLoaded=true; generateAICommentary(); }
+    if(!aiLoaded){ aiLoaded=true; if(getAIKey()) generateAICommentary(); else { showAIKeyForm(); wireKeyForm(); } }
     document.getElementById('loading').classList.add('hidden');
   }catch(err){
     console.error('Load failed:',err);
