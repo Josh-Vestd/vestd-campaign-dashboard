@@ -207,6 +207,26 @@
     @keyframes spin { to { transform:rotate(360deg); } }
     .loading-overlay.hidden { display:none; }
 
+    /* ── FUNNEL TOP CAMPAIGNS ── */
+    .ftc-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(190px,1fr)); gap:10px; }
+    .ftc-stage { background:var(--bg); border-radius:8px; padding:12px 14px; }
+    .ftc-stage-header { font-size:10px; font-weight:800; color:var(--brand); text-transform:uppercase; letter-spacing:.8px; margin-bottom:8px; padding-bottom:6px; border-bottom:1px solid var(--border); }
+    .ftc-item { display:flex; align-items:baseline; gap:6px; padding:5px 0; border-bottom:1px solid var(--border); }
+    .ftc-item:last-child { border-bottom:none; }
+    .ftc-rank { font-size:10px; font-weight:800; color:var(--muted); width:14px; flex-shrink:0; }
+    .ftc-name { font-size:11px; color:var(--text); flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .ftc-val  { font-size:11px; font-weight:700; color:var(--brand); flex-shrink:0; white-space:nowrap; }
+    .ftc-empty { font-size:11px; color:var(--muted); font-style:italic; padding:4px 0; }
+
+    /* ── DREAMDATA ── */
+    .dreamdata-note { font-size:11px; color:var(--muted); margin-bottom:14px; font-style:italic; }
+    .dreamdata-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:14px; }
+    .dreamdata-card { background:var(--card); border:1px solid var(--border); border-radius:12px; padding:18px; display:flex; flex-direction:column; gap:10px; }
+    .dreamdata-team { font-size:13px; font-weight:700; }
+    .dreamdata-label { font-size:11px; color:var(--muted); line-height:1.45; flex:1; }
+    .dreamdata-btn { display:inline-block; padding:8px 14px; background:var(--brand); color:#fff; border-radius:8px; font-size:12px; font-weight:600; text-decoration:none; text-align:center; transition:background .15s; }
+    .dreamdata-btn:hover { background:var(--brand-dark); }
+
     /* ── LOGIN OVERLAY ── */
     #login-overlay {
       position: fixed; inset: 0; z-index: 1000;
@@ -448,23 +468,18 @@
     <div class="charts-grid">
       <div class="chart-card">
         <div class="chart-title">Spend by Platform</div>
-        <div class="chart-subtitle">Total spend distribution across platforms</div>
-        <div class="chart-wrap"><canvas id="chart-platform-donut"></canvas></div>
-      </div>
-      <div class="chart-card">
-        <div class="chart-title">Spend by Platform (Trend)</div>
         <div class="chart-subtitle">Comparative spend per platform</div>
         <div class="chart-wrap"><canvas id="chart-spend-trend"></canvas></div>
       </div>
       <div class="chart-card">
-        <div class="chart-title">Budget vs Spend by Team</div>
-        <div class="chart-subtitle">Allocated budget vs actual spend per team</div>
-        <div class="chart-wrap"><canvas id="chart-budget-vs-spend"></canvas></div>
+        <div class="chart-title">Reach &amp; Impressions by Team</div>
+        <div class="chart-subtitle">Unique reach vs total impressions per team</div>
+        <div class="chart-wrap"><canvas id="chart-reach-impressions"></canvas></div>
       </div>
-      <div class="chart-card">
-        <div class="chart-title">Impressions by Team</div>
-        <div class="chart-subtitle">Total ad impressions per team</div>
-        <div class="chart-wrap"><canvas id="chart-team-impressions"></canvas></div>
+      <div class="chart-card" style="grid-column:span 2">
+        <div class="chart-title">Clicks, CTR &amp; CPC Trend</div>
+        <div class="chart-subtitle">Clicks and CTR (left axis) with CPC bars (right axis) over time</div>
+        <div class="chart-wrap tall"><canvas id="chart-clicks-trend"></canvas></div>
       </div>
     </div>
   </div>
@@ -473,11 +488,6 @@
   <div class="chart-section">
     <div class="chart-section-header"><span class="chart-section-title">Efficiency</span><div class="chart-section-line"></div></div>
     <div class="charts-grid">
-      <div class="chart-card">
-        <div class="chart-title">CPC by Platform</div>
-        <div class="chart-subtitle">Average cost per click — lower is better</div>
-        <div class="chart-wrap tall"><canvas id="chart-cpc-platform"></canvas></div>
-      </div>
       <div class="chart-card">
         <div class="chart-title">Funnel Performance</div>
         <div class="chart-subtitle">Impressions → Reach → Clicks → QDs</div>
@@ -509,6 +519,53 @@
         <div class="chart-title">Spend by Team</div>
         <div class="chart-subtitle">Total spend per team</div>
         <div class="chart-wrap"><canvas id="chart-team-spend"></canvas></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── TOP CAMPAIGNS BY FUNNEL STAGE ── -->
+  <div class="chart-section">
+    <div class="chart-section-header"><span class="chart-section-title">Top Campaigns by Funnel Stage</span><div class="chart-section-line"></div></div>
+    <div class="chart-card">
+      <div class="chart-title">Top 3 Campaigns by Clicks per Funnel Stage</div>
+      <div class="chart-subtitle">Highest-clicking campaigns within each stage, ranked by total clicks</div>
+      <div id="funnel-top-campaigns" class="ftc-grid" style="margin-top:4px"></div>
+    </div>
+  </div>
+
+  <!-- ── DREAMDATA ── -->
+  <div class="chart-section">
+    <div class="chart-section-header">
+      <svg width="18" height="18" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg" style="flex-shrink:0" aria-hidden="true"><rect width="32" height="32" rx="6" fill="#1a1a2e"/><circle cx="16" cy="16" r="7" stroke="#00fccc" stroke-width="2.5"/><circle cx="16" cy="16" r="2.5" fill="#00fccc"/></svg>
+      <span class="chart-section-title">Dreamdata — Company Engagement</span>
+      <div class="chart-section-line"></div>
+    </div>
+    <p class="dreamdata-note">Links open Dreamdata reports filtered by team. Contact your Dreamdata admin to update URLs.</p>
+    <div class="dreamdata-grid">
+      <div class="dreamdata-card">
+        <div class="dreamdata-team" style="color:var(--growth)">Growth</div>
+        <div class="dreamdata-label">View companies &amp; deal sizes engaging with this team's campaigns</div>
+        <a class="dreamdata-btn" href="https://app.dreamdata.io/team/growth" target="_blank" rel="noopener">Open in Dreamdata →</a>
+      </div>
+      <div class="dreamdata-card">
+        <div class="dreamdata-team" style="color:var(--scale)">Scale</div>
+        <div class="dreamdata-label">View companies &amp; deal sizes engaging with this team's campaigns</div>
+        <a class="dreamdata-btn" href="https://app.dreamdata.io/team/scale" target="_blank" rel="noopener">Open in Dreamdata →</a>
+      </div>
+      <div class="dreamdata-card">
+        <div class="dreamdata-team" style="color:var(--enterprise)">Enterprise</div>
+        <div class="dreamdata-label">View companies &amp; deal sizes engaging with this team's campaigns</div>
+        <a class="dreamdata-btn" href="https://app.dreamdata.io/team/enterprise" target="_blank" rel="noopener">Open in Dreamdata →</a>
+      </div>
+      <div class="dreamdata-card">
+        <div class="dreamdata-team" style="color:var(--central)">Central</div>
+        <div class="dreamdata-label">View companies &amp; deal sizes engaging with this team's campaigns</div>
+        <a class="dreamdata-btn" href="https://app.dreamdata.io/team/central" target="_blank" rel="noopener">Open in Dreamdata →</a>
+      </div>
+      <div class="dreamdata-card">
+        <div class="dreamdata-team" style="color:var(--pmi)">PMI</div>
+        <div class="dreamdata-label">View companies &amp; deal sizes engaging with this team's campaigns</div>
+        <a class="dreamdata-btn" href="https://app.dreamdata.io/team/pmi" target="_blank" rel="noopener">Open in Dreamdata →</a>
       </div>
     </div>
   </div>
@@ -877,80 +934,81 @@ function updateCharts(rows){
   const teams=Object.keys(TEAM_COLORS);
   const platSpend=groupBy(rows,'platform','spend');
   const plats=Object.keys(platSpend).sort();
+  const teamSpend=groupBy(rows,'team','spend');
 
-  // 1. Spend by Platform — doughnut
-  buildOrUpdateChart('chart-platform-donut',{
-    type:'doughnut',data:{labels:plats,datasets:[{
-      data:plats.map(p=>platSpend[p]),
-      backgroundColor:plats.map(p=>platformColor(p)),borderWidth:2,borderColor:'#fff'
-    }]},
-    options:{responsive:true,maintainAspectRatio:false,cutout:'60%',plugins:{
-      legend:{position:'right',labels:{font:{size:10},color:'#7a6068',padding:10}},
-      tooltip:{callbacks:{label:c=>` ${c.label}: ${fmtMoney(c.raw)}`}}
-    }}
-  });
-
-  // 2. Spend trend — line
+  // 1. Spend by Platform — bar
   buildOrUpdateChart('chart-spend-trend',{
-    type:'line',data:{labels:plats,datasets:[{label:'Spend',data:plats.map(p=>platSpend[p]),
-      borderColor:BRAND,backgroundColor:'rgba(90,0,35,.08)',
-      borderWidth:2.5,tension:0.4,fill:true,pointBackgroundColor:BRAND,pointRadius:4}]},
-    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},
+    type:'bar',data:{labels:plats,datasets:[{label:'Spend',data:plats.map(p=>platSpend[p]),
+      backgroundColor:plats.map(p=>platformColor(p)+'cc'),
+      borderColor:plats.map(p=>platformColor(p)),
+      borderWidth:1.5,borderRadius:6}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},
+      tooltip:{callbacks:{label:c=>` ${c.label}: ${fmtMoney(c.raw)}`}}},
       scales:{
         y:{ticks:{callback:v=>fmtMoney(v),...TICK},grid:GRID},
         x:{ticks:TICK,grid:{display:false}}
       }}
   });
 
-  // 3. Budget vs Spend by Team — grouped bar
-  const teamBudget=groupBy(rows,'team','budget');
-  const teamSpend=groupBy(rows,'team','spend');
-  buildOrUpdateChart('chart-budget-vs-spend',{
+  // 2. Reach & Impressions by Team — grouped bar
+  const teamReach=groupBy(rows,'team','reach');
+  const teamImpr =groupBy(rows,'team','impressions');
+  buildOrUpdateChart('chart-reach-impressions',{
     type:'bar',data:{labels:teams,datasets:[
-      {label:'Budget',data:teams.map(t=>teamBudget[t]||0),
-        backgroundColor:'#ede9e8',borderColor:'#c9b8be',borderWidth:1.5,borderRadius:4},
-      {label:'Spend', data:teams.map(t=>teamSpend[t]||0),
-        backgroundColor:teams.map(t=>TEAM_COLORS[t]),
-        borderColor:teams.map(t=>TEAM_COLORS[t]),borderWidth:0,borderRadius:4}
+      {label:'Reach',      data:teams.map(t=>teamReach[t]||0), backgroundColor:ACCENT,     borderRadius:4, barPercentage:.7},
+      {label:'Impressions',data:teams.map(t=>teamImpr[t]||0),  backgroundColor:BRAND,      borderRadius:4, barPercentage:.7},
     ]},
     options:{responsive:true,maintainAspectRatio:false,
       plugins:{legend:{labels:{font:{size:10},color:'#7a6068',padding:12}}},
-      scales:{
-        y:{ticks:{callback:v=>fmtMoney(v),...TICK},grid:GRID},
-        x:{ticks:TICK,grid:{display:false}}
-      }}
-  });
-
-  // 4. Impressions by Team — bar
-  const teamImpr=groupBy(rows,'team','impressions');
-  buildOrUpdateChart('chart-team-impressions',{
-    type:'bar',data:{labels:teams,datasets:[{label:'Impressions',data:teams.map(t=>teamImpr[t]||0),
-      backgroundColor:teams.map(t=>TEAM_BG[t]),borderColor:teams.map(t=>TEAM_COLORS[t]),
-      borderWidth:2,borderRadius:6}]},
-    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},
       scales:{
         y:{ticks:{callback:v=>fmtNum(v),...TICK},grid:GRID},
         x:{ticks:TICK,grid:{display:false}}
       }}
   });
 
-  // 5. CPC by Platform — horizontal bar
-  const platClicks=groupBy(rows,'platform','clicks');
-  const platsWithCPC=plats.filter(p=>platClicks[p]>0);
-  const cpcVals=platsWithCPC.map(p=>platSpend[p]/platClicks[p]);
-  buildOrUpdateChart('chart-cpc-platform',{
-    type:'bar',data:{labels:platsWithCPC,datasets:[{label:'CPC',data:cpcVals,
-      backgroundColor:platsWithCPC.map(p=>platformColor(p)+'CC'),
-      borderColor:platsWithCPC.map(p=>platformColor(p)),borderWidth:1.5,borderRadius:4}]},
-    options:{responsive:true,maintainAspectRatio:false,indexAxis:'y',
-      plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>` CPC: ${fmtMoney(c.raw)}`}}},
+  // 3. Clicks, CTR & CPC Trend — dual-axis mixed chart
+  const trendMap={};
+  for(const r of rows){
+    if(!r.dateStr) continue;
+    if(!trendMap[r.dateStr]) trendMap[r.dateStr]={clicks:0,impressions:0,spend:0};
+    trendMap[r.dateStr].clicks      += r.clicks;
+    trendMap[r.dateStr].impressions += r.impressions;
+    trendMap[r.dateStr].spend       += r.spend;
+  }
+  const sortedDates=Object.keys(trendMap).sort((a,b)=>{
+    const da=parseDate(a),db=parseDate(b); return da&&db?da-db:0;
+  });
+  const trendLabels   = sortedDates;
+  const trendClicks   = sortedDates.map(d=>trendMap[d].clicks);
+  const trendCTR      = sortedDates.map(d=>trendMap[d].impressions>0?(trendMap[d].clicks/trendMap[d].impressions)*100:0);
+  const trendCPC      = sortedDates.map(d=>trendMap[d].clicks>0?trendMap[d].spend/trendMap[d].clicks:0);
+  buildOrUpdateChart('chart-clicks-trend',{
+    type:'bar',
+    data:{labels:trendLabels,datasets:[
+      {type:'line',label:'Clicks',  data:trendClicks,yAxisID:'yL',
+        borderColor:BRAND,backgroundColor:'transparent',borderWidth:2.5,tension:0.4,
+        pointRadius:3,pointBackgroundColor:BRAND},
+      {type:'line',label:'CTR %',   data:trendCTR,  yAxisID:'yL',
+        borderColor:ACCENT,backgroundColor:'transparent',borderWidth:2.5,tension:0.4,
+        pointRadius:3,pointBackgroundColor:ACCENT},
+      {type:'bar', label:'CPC',     data:trendCPC,  yAxisID:'yR',
+        backgroundColor:'#e0d8da',borderColor:'#c9b8be',borderWidth:1,borderRadius:3},
+    ]},
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{labels:{font:{size:10},color:'#7a6068',padding:12}},
+        tooltip:{callbacks:{label:c=>{
+          if(c.dataset.label==='Clicks')  return ` Clicks: ${fmtNum(c.raw)}`;
+          if(c.dataset.label==='CTR %')   return ` CTR: ${c.raw.toFixed(2)}%`;
+          return ` CPC: ${fmtMoney(c.raw)}`;
+        }}}},
       scales:{
-        x:{ticks:{callback:v=>fmtMoney(v),...TICK},grid:GRID},
-        y:{ticks:TICK,grid:{display:false}}
+        yL:{position:'left', ticks:{callback:v=>fmtNum(v),...TICK},grid:GRID},
+        yR:{position:'right',ticks:{callback:v=>fmtMoney(v),...TICK},grid:{display:false}},
+        x: {ticks:TICK,grid:{display:false}},
       }}
   });
 
-  // 6. Funnel Performance — horizontal bar
+  // 4. Funnel Performance — horizontal bar
   const totalImpr=rows.reduce((s,r)=>s+r.impressions,0);
   const totalReach=rows.reduce((s,r)=>s+r.reach,0);
   const totalClicks=rows.reduce((s,r)=>s+r.clicks,0);
@@ -1044,6 +1102,51 @@ function updateCharts(rows){
   });
 }
 
+// ── FUNNEL TOP CAMPAIGNS ─────────────────────────────────────────────────────
+function renderFunnelTopCampaigns(rows){
+  const el=document.getElementById('funnel-top-campaigns');
+  if(!el) return;
+
+  if(!hasFunnelCol){
+    el.innerHTML='<div class="chart-empty">No funnel stage data in this sheet</div>';
+    return;
+  }
+
+  // Group filteredRows by funnel stage → campaign name → sum clicks
+  const stageMap={};
+  for(const r of rows){
+    const stage=(r.funnelStage||'').trim()||'Unassigned';
+    if(!stageMap[stage]) stageMap[stage]={};
+    const key=r.name||'(Unnamed)';
+    stageMap[stage][key]=(stageMap[stage][key]||0)+r.clicks;
+  }
+
+  const stages=Object.keys(stageMap).sort();
+  if(!stages.length){
+    el.innerHTML='<div class="chart-empty">No data in current selection</div>';
+    return;
+  }
+
+  el.innerHTML=stages.map(stage=>{
+    const sorted=Object.entries(stageMap[stage])
+      .filter(([,v])=>v>0)
+      .sort((a,b)=>b[1]-a[1])
+      .slice(0,3);
+    const items=sorted.length
+      ? sorted.map(([name,clicks],i)=>
+          `<div class="ftc-item">
+            <span class="ftc-rank">${i+1}</span>
+            <span class="ftc-name" title="${escHtml(name)}">${escHtml(name)}</span>
+            <span class="ftc-val">${fmtNum(clicks)} clicks</span>
+          </div>`).join('')
+      : '<div class="ftc-empty">No click data</div>';
+    return `<div class="ftc-stage">
+      <div class="ftc-stage-header">${escHtml(stage)}</div>
+      ${items}
+    </div>`;
+  }).join('');
+}
+
 // ── TABLE ─────────────────────────────────────────────────────────────────────
 function renderTable(rows){
   document.getElementById('row-count').textContent=rows.length+' campaign'+(rows.length===1?'':'s');
@@ -1092,6 +1195,7 @@ function refresh(){
   applyFilters();
   updateKPIs(filteredRows);
   updateCharts(filteredRows);
+  renderFunnelTopCampaigns(filteredRows);
   const tableRows=aggregateForTable(filteredRows);
   sortRows(tableRows);
   renderTable(tableRows);
