@@ -227,6 +227,42 @@
     .dreamdata-btn { display:inline-block; padding:8px 14px; background:var(--brand); color:#fff; border-radius:8px; font-size:12px; font-weight:600; text-decoration:none; text-align:center; transition:background .15s; }
     .dreamdata-btn:hover { background:var(--brand-dark); }
 
+    /* ── BENCHMARK INDICATORS ── */
+    .kpi-benchmark { font-size:10px; margin-top:5px; font-weight:600; }
+
+    /* ── SVG FUNNEL ── */
+    .funnel-full-card { grid-column:1/-1; }
+    #funnel-svg-wrap { width:100%; min-height:180px; }
+
+    /* ── AI COMMENTARY ── */
+    .ai-card {
+      background:var(--card); border:1px solid var(--border);
+      border-left:4px solid var(--accent);
+      border-radius:12px; padding:18px 22px; margin-bottom:20px;
+    }
+    .ai-card-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:12px; }
+    .ai-card-title { font-size:13px; font-weight:700; color:var(--text); display:flex; align-items:center; gap:8px; }
+    .ai-card-title .ai-icon { color:var(--accent); font-size:15px; }
+    .ai-card-body { font-size:13px; line-height:1.65; color:var(--text); min-height:48px; }
+    .ai-card-footer { display:flex; align-items:center; justify-content:space-between; margin-top:12px; }
+    .ai-ts { font-size:10px; color:var(--muted); }
+    .ai-regen-btn {
+      font-size:11px; font-weight:600; color:var(--brand); background:none;
+      border:1.5px solid var(--brand); border-radius:6px; padding:4px 10px;
+      cursor:pointer; font-family:inherit; transition:background .15s,color .15s;
+    }
+    .ai-regen-btn:hover { background:var(--brand); color:#fff; }
+    .ai-regen-btn:disabled { opacity:.45; cursor:not-allowed; }
+    @keyframes shimmer { 0%{background-position:-200% 0} 100%{background-position:200% 0} }
+    .ai-shimmer > div {
+      height:13px; border-radius:6px; margin-bottom:9px;
+      background:linear-gradient(90deg,#f0eae8 25%,#e4d5d0 50%,#f0eae8 75%);
+      background-size:200% 100%; animation:shimmer 1.5s infinite;
+    }
+    .ai-shimmer > div:nth-child(1){width:100%}
+    .ai-shimmer > div:nth-child(2){width:82%}
+    .ai-shimmer > div:nth-child(3){width:65%}
+
     /* ── LOGIN OVERLAY ── */
     #login-overlay {
       position: fixed; inset: 0; z-index: 1000;
@@ -422,15 +458,18 @@
     <div class="kpi-card">
       <div class="kpi-label-row"><span class="kpi-label">Avg CTR</span><button class="kpi-info-icon" data-tooltip="Click-Through Rate — the percentage of impressions that resulted in a click. Formula: Clicks ÷ Impressions × 100">i</button></div>
       <div class="kpi-value" id="kpi-ctr">—</div>
+      <div class="kpi-benchmark" id="kpi-ctr-benchmark"></div>
     </div>
     <div class="kpi-card">
       <div class="kpi-label-row"><span class="kpi-label">Avg CPC</span><button class="kpi-info-icon" data-tooltip="Cost Per Click — the average amount spent each time a user clicks your ad. Formula: Total Spend ÷ Clicks">i</button></div>
       <div class="kpi-value" id="kpi-cpc">—</div>
+      <div class="kpi-benchmark" id="kpi-cpc-benchmark"></div>
     </div>
     <div class="kpi-card">
       <div class="kpi-label-row"><span class="kpi-label">CPM</span><button class="kpi-info-icon" data-tooltip="Cost Per 1,000 Impressions — how much it costs to serve 1,000 ad impressions. Formula: (Spend ÷ Impressions) × 1,000">i</button></div>
       <div class="kpi-value" id="kpi-cpm">—</div>
       <div class="kpi-sub">per 1,000 impressions</div>
+      <div class="kpi-benchmark" id="kpi-cpm-benchmark"></div>
     </div>
     <div class="kpi-card">
       <div class="kpi-label-row"><span class="kpi-label">Active Campaigns</span><button class="kpi-info-icon" data-tooltip="The number of campaigns currently running with an Active status">i</button></div>
@@ -459,6 +498,30 @@
     <div class="kpi-card qd">
       <div class="kpi-label-row"><span class="kpi-label">SPV QDs</span><button class="kpi-info-icon" data-tooltip="Qualified Demos attributed to SPV (Special Purpose Vehicle) campaigns">i</button></div>
       <div class="kpi-value" id="kpi-spv-qds">—</div>
+    </div>
+  </div>
+
+  <!-- ── AI COMMENTARY ── -->
+  <div class="ai-card" id="ai-commentary-card" style="margin-top:20px">
+    <div class="ai-card-header">
+      <div class="ai-card-title"><span class="ai-icon">✦</span> AI Campaign Commentary</div>
+      <button class="ai-regen-btn" id="ai-regen-btn" onclick="generateAICommentary(true)">↻ Regenerate</button>
+    </div>
+    <div class="ai-card-body" id="ai-card-body">
+      <div class="ai-shimmer"><div></div><div></div><div></div></div>
+    </div>
+    <div class="ai-card-footer">
+      <span class="ai-ts" id="ai-ts"></span>
+    </div>
+  </div>
+
+  <!-- ── SVG CONVERSION FUNNEL ── -->
+  <div class="chart-section" style="margin-top:20px">
+    <div class="chart-section-header"><span class="chart-section-title">Conversion Funnel</span><div class="chart-section-line"></div></div>
+    <div class="chart-card funnel-full-card">
+      <div class="chart-title">Campaign Funnel — Impressions to QDs</div>
+      <div class="chart-subtitle">Volume at each funnel stage across filtered campaigns</div>
+      <div id="funnel-svg-wrap"></div>
     </div>
   </div>
 
@@ -519,14 +582,29 @@
         <div class="chart-wrap"><canvas id="chart-spend-trend"></canvas></div>
       </div>
       <div class="chart-card">
+        <div class="chart-title">Platform Mix</div>
+        <div class="chart-subtitle">Spend distribution across platforms</div>
+        <div class="chart-wrap"><canvas id="chart-platform-pie"></canvas></div>
+      </div>
+      <div class="chart-card">
         <div class="chart-title">Reach &amp; Impressions by Team</div>
         <div class="chart-subtitle">Unique reach vs total impressions per team</div>
         <div class="chart-wrap"><canvas id="chart-reach-impressions"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-title">CTR vs Benchmark by Team</div>
+        <div class="chart-subtitle">Actual CTR vs LinkedIn avg (0.65%) per team</div>
+        <div class="chart-wrap"><canvas id="chart-ctr-benchmark"></canvas></div>
       </div>
       <div class="chart-card" style="grid-column:span 2">
         <div class="chart-title">Clicks, CTR &amp; CPC Trend</div>
         <div class="chart-subtitle">Clicks and CTR (left axis) with CPC bars (right axis) over time</div>
         <div class="chart-wrap tall"><canvas id="chart-clicks-trend"></canvas></div>
+      </div>
+      <div class="chart-card" style="grid-column:span 2">
+        <div class="chart-title">Spend over Time by Team</div>
+        <div class="chart-subtitle">Spend stacked by team across dates</div>
+        <div class="chart-wrap tall"><canvas id="chart-spend-area"></canvas></div>
       </div>
     </div>
   </div>
@@ -614,6 +692,17 @@
 
 <script>
 // ── CONFIG ───────────────────────────────────────────────────────────────────
+const CONFIG = {
+  anthropicApiKey: 'PASTE_YOUR_ANTHROPIC_API_KEY_HERE',
+  claudeModel: 'claude-haiku-4-5-20251001',
+};
+
+const BENCHMARKS = {
+  ctr: 0.65,  // % — LinkedIn average CTR
+  cpc: 3.50,  // £ — target CPC
+  cpm: 8.00,  // £ — target CPM
+};
+
 const DATA_SOURCES = [
   {
     name: "LinkedIn",
@@ -636,6 +725,7 @@ let sortCol        = 'budget';
 let sortDir        = 'desc';
 let searchQuery    = '';
 let charts         = {};
+let aiLoaded       = false;
 let hasQDColumns   = false;
 let hasFunnelCol   = false;
 let hasDateCol     = false;
@@ -897,6 +987,18 @@ function updateKPIs(rows){
   document.getElementById('kpi-cpm').textContent         = fmtMoney(cpm);
   document.getElementById('kpi-active').textContent      = active;
 
+  function setBenchmark(id, actual, target, higherIsBetter, fmt){
+    const el=document.getElementById(id); if(!el||!actual) return;
+    const good = higherIsBetter ? actual >= target : actual <= target;
+    const diff = (actual - target) / target * 100;
+    const sign = diff >= 0 ? '+' : '';
+    el.textContent = (good ? '▲' : '▼') + ' ' + sign + diff.toFixed(1) + '% vs benchmark (' + fmt(target) + ')';
+    el.style.color = good ? '#16A34A' : '#DC2626';
+  }
+  if(avgCTR>0) setBenchmark('kpi-ctr-benchmark', avgCTR, BENCHMARKS.ctr, true,  v=>v.toFixed(2)+'%');
+  if(avgCPC>0) setBenchmark('kpi-cpc-benchmark', avgCPC, BENCHMARKS.cpc, false, v=>'£'+v.toFixed(2));
+  if(cpm>0)    setBenchmark('kpi-cpm-benchmark', cpm,    BENCHMARKS.cpm, false, v=>'£'+v.toFixed(2));
+
   if(hasQDColumns){
     const setQD=(id,key)=>{
       const v=rows.reduce((s,r)=>s+(r[key]||0),0);
@@ -1100,6 +1202,74 @@ function updateCharts(rows){
         x:{ticks:TICK,grid:{display:false}}
       }}
   });
+
+  // 11. Platform Mix — doughnut
+  buildOrUpdateChart('chart-platform-pie',{
+    type:'doughnut',data:{labels:plats,datasets:[{
+      data:plats.map(p=>platSpend[p]),
+      backgroundColor:plats.map(p=>platformColor(p)),
+      borderWidth:2,borderColor:'#fff'
+    }]},
+    options:{responsive:true,maintainAspectRatio:false,cutout:'50%',plugins:{
+      legend:{position:'right',labels:{font:{size:10},color:'#7a6068',padding:10}},
+      tooltip:{callbacks:{label:c=>` ${c.label}: ${fmtMoney(c.raw)}`}}
+    }}
+  });
+
+  // 12. CTR vs Benchmark by Team — grouped bar + reference line
+  const teamImprT=groupBy(rows,'team','impressions');
+  const teamClicksT=groupBy(rows,'team','clicks');
+  buildOrUpdateChart('chart-ctr-benchmark',{
+    type:'bar',data:{labels:teams,datasets:[
+      {label:'Actual CTR %',data:teams.map(t=>{const imp=teamImprT[t]||0,clk=teamClicksT[t]||0;return imp>0?(clk/imp)*100:0;}),
+        backgroundColor:teams.map(t=>TEAM_BG[t]),borderColor:teams.map(t=>TEAM_COLORS[t]),
+        borderWidth:2,borderRadius:4},
+      {type:'line',label:'Benchmark (0.65%)',data:teams.map(()=>BENCHMARKS.ctr),
+        borderColor:ACCENT,borderWidth:2,borderDash:[4,4],pointRadius:0,fill:false},
+    ]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{
+      legend:{labels:{font:{size:10},color:'#7a6068',padding:10}},
+      tooltip:{callbacks:{label:c=>{
+        if(c.dataset.label.startsWith('Benchmark')) return ` Benchmark: ${BENCHMARKS.ctr}%`;
+        return ` ${c.dataset.label}: ${c.raw.toFixed(2)}%`;
+      }}}
+    },scales:{
+      y:{ticks:{callback:v=>v.toFixed(2)+'%',...TICK},grid:GRID},
+      x:{ticks:TICK,grid:{display:false}}
+    }}
+  });
+
+  // 13. Spend over Time by Team — stacked bar
+  const teamDates={};
+  for(const r of rows){
+    if(!r.dateStr) continue;
+    const t=r.team||'Unknown';
+    if(!teamDates[t]) teamDates[t]={};
+    teamDates[t][r.dateStr]=(teamDates[t][r.dateStr]||0)+r.spend;
+  }
+  const areaTeams=Object.keys(TEAM_COLORS).filter(t=>teamDates[t]&&Object.keys(teamDates[t]).length>0);
+  const areaDates=[...new Set(rows.filter(r=>r.dateStr).map(r=>r.dateStr))].sort((a,b)=>{
+    const da=parseDate(a),db=parseDate(b);return da&&db?da-db:0;
+  });
+  if(areaDates.length>0&&areaTeams.length>0){
+    buildOrUpdateChart('chart-spend-area',{
+      type:'bar',data:{labels:areaDates,datasets:areaTeams.map(t=>({
+        label:t,data:areaDates.map(d=>(teamDates[t]&&teamDates[t][d])||0),
+        backgroundColor:TEAM_BG[t]||'#ccc',borderColor:TEAM_COLORS[t]||'#999',
+        borderWidth:1.5,borderRadius:2,stack:'spend'
+      }))},
+      options:{responsive:true,maintainAspectRatio:false,plugins:{
+        legend:{labels:{font:{size:10},color:'#7a6068',padding:10}},
+        tooltip:{callbacks:{label:c=>` ${c.dataset.label}: ${fmtMoney(c.raw)}`}}
+      },scales:{
+        x:{stacked:true,ticks:TICK,grid:{display:false}},
+        y:{stacked:true,ticks:{callback:v=>fmtMoney(v),...TICK},grid:GRID}
+      }}
+    });
+  } else {
+    const c=document.getElementById('chart-spend-area');
+    if(c) c.parentElement.innerHTML='<div class="chart-empty">No date data available for trend</div>';
+  }
 }
 
 // ── FUNNEL TOP CAMPAIGNS ─────────────────────────────────────────────────────
@@ -1145,6 +1315,90 @@ function renderFunnelTopCampaigns(rows){
       ${items}
     </div>`;
   }).join('');
+}
+
+// ── SVG FUNNEL ─────────────────────────────────────────────────────────────
+function renderSVGFunnel(rows){
+  const el=document.getElementById('funnel-svg-wrap');
+  if(!el) return;
+  const totalImpr=rows.reduce((s,r)=>s+r.impressions,0);
+  const totalReach=rows.reduce((s,r)=>s+r.reach,0);
+  const totalClicks=rows.reduce((s,r)=>s+r.clicks,0);
+  const totalQDs=hasQDColumns?rows.reduce((s,r)=>s+(r.influencedQDs||0),0):0;
+  const stages=[{label:'Impressions',val:totalImpr,color:'#5a0023'}];
+  if(totalReach>0) stages.push({label:'Reach',val:totalReach,color:'#7a2040'});
+  stages.push({label:'Clicks',val:totalClicks,color:'#a05070'});
+  if(hasQDColumns&&totalQDs>0) stages.push({label:'QDs',val:totalQDs,color:'#c4a0b0'});
+  if(!stages[0].val){el.innerHTML='<div class="chart-empty" style="height:180px">No data in current selection</div>';return;}
+  const W=el.offsetWidth||600,H=190,pad=12;
+  const n=stages.length,slotW=(W-2*pad)/n;
+  const maxVal=stages[0].val,maxW=slotW*0.9,minW=maxW*0.28;
+  const parts=['<svg xmlns="http://www.w3.org/2000/svg" width="'+W+'" height="'+H+'" style="display:block">'];
+  stages.forEach((s,i)=>{
+    const ratio=maxVal>0?s.val/maxVal:0;
+    const nextS=stages[i+1];
+    const nextRatio=nextS&&maxVal>0?nextS.val/maxVal:ratio*0.65;
+    const tw=minW+(maxW-minW)*ratio,bw=nextS?minW+(maxW-minW)*nextRatio:tw*0.65;
+    const cx=pad+i*slotW+slotW/2,y1=26,y2=H-52;
+    const x1=cx-tw/2,x2=cx+tw/2,x3=cx+bw/2,x4=cx-bw/2;
+    parts.push(`<polygon points="${x1},${y1} ${x2},${y1} ${x3},${y2} ${x4},${y2}" fill="${s.color}" opacity="0.88"/>`);
+    parts.push(`<text x="${cx}" y="${y1-8}" text-anchor="middle" font-family="Inter Tight,sans-serif" font-size="10" font-weight="700" fill="#7a6068">${escHtml(s.label)}</text>`);
+    const midY=(y1+y2)/2+5;
+    parts.push(`<text x="${cx}" y="${midY}" text-anchor="middle" font-family="Inter Tight,sans-serif" font-size="12" font-weight="700" fill="#fff">${fmtNum(s.val)}</text>`);
+    if(i>0){
+      const conv=(totalImpr>0?(s.val/totalImpr)*100:0).toFixed(1);
+      parts.push(`<text x="${cx}" y="${y2+16}" text-anchor="middle" font-family="Inter Tight,sans-serif" font-size="10" fill="#7a6068">${conv}% of impr.</text>`);
+    }
+    if(nextS){
+      const convStep=(s.val>0?(nextS.val/s.val)*100:0).toFixed(1);
+      parts.push(`<text x="${cx+slotW/2}" y="${(y1+y2)/2+5}" text-anchor="middle" font-family="Inter Tight,sans-serif" font-size="9" fill="#b0a0a6">${convStep}%→</text>`);
+    }
+  });
+  parts.push('</svg>');
+  el.innerHTML=parts.join('');
+}
+
+// ── AI COMMENTARY ────────────────────────────────────────────────────────────
+async function generateAICommentary(force){
+  const body=document.getElementById('ai-card-body');
+  const tsEl=document.getElementById('ai-ts');
+  const btn=document.getElementById('ai-regen-btn');
+  if(!body) return;
+  if(!CONFIG.anthropicApiKey||CONFIG.anthropicApiKey.startsWith('PASTE')){
+    body.innerHTML='<span style="color:var(--muted);font-style:italic">Add your Anthropic API key in the CONFIG object to enable AI commentary.</span>';
+    return;
+  }
+  if(btn) btn.disabled=true;
+  body.innerHTML='<div class="ai-shimmer"><div></div><div></div><div></div></div>';
+  const totalSpend=filteredRows.reduce((s,r)=>s+r.spend,0);
+  const totalImpr=filteredRows.reduce((s,r)=>s+r.impressions,0);
+  const totalClicks=filteredRows.reduce((s,r)=>s+r.clicks,0);
+  const avgCTR=totalImpr>0?(totalClicks/totalImpr)*100:0;
+  const avgCPC=totalClicks>0?totalSpend/totalClicks:0;
+  const cpm=totalImpr>0?(totalSpend/totalImpr)*1000:0;
+  const active=filteredRows.filter(r=>r.statusNorm==='active').length;
+  const totalQDs=hasQDColumns?filteredRows.reduce((s,r)=>s+(r.influencedQDs||0),0):0;
+  const prompt=`You are a B2B marketing analyst reviewing Vestd's paid campaign performance. Vestd sells equity management software to UK SMEs and startups. Write a concise 3-sentence commentary. Be specific and actionable. Benchmarks: LinkedIn avg CTR ~0.65%, good CPC under £3.50, good CPM under £8.\n\nMetrics:\n- Spend: ${fmtMoney(totalSpend)}\n- Impressions: ${fmtNum(totalImpr)}\n- Clicks: ${fmtNum(totalClicks)}\n- CTR: ${avgCTR.toFixed(2)}% (benchmark 0.65%)\n- CPC: ${fmtMoney(avgCPC)} (benchmark £3.50)\n- CPM: ${fmtMoney(cpm)} (benchmark £8.00)\n- Active campaigns: ${active}${hasQDColumns&&totalQDs>0?'\n- Influenced QDs: '+fmtNum(totalQDs):''}\n\nCover: 1) Overall performance vs benchmarks, 2) One strength, 3) One actionable recommendation.`;
+  try{
+    const res=await fetch('https://api.anthropic.com/v1/messages',{
+      method:'POST',
+      headers:{
+        'x-api-key':CONFIG.anthropicApiKey,
+        'anthropic-version':'2023-06-01',
+        'anthropic-dangerous-allow-browser':'true',
+        'content-type':'application/json',
+      },
+      body:JSON.stringify({model:CONFIG.claudeModel,max_tokens:256,messages:[{role:'user',content:prompt}]})
+    });
+    const data=await res.json();
+    const text=data.content?.[0]?.text||'Unable to generate commentary.';
+    body.textContent=text;
+    if(tsEl) tsEl.textContent='Generated '+new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});
+  }catch(e){
+    body.innerHTML='<span style="color:#DC2626">Failed to generate commentary. Check your API key and network.</span>';
+  }finally{
+    if(btn) btn.disabled=false;
+  }
 }
 
 // ── TABLE ─────────────────────────────────────────────────────────────────────
@@ -1196,6 +1450,7 @@ function refresh(){
   updateKPIs(filteredRows);
   updateCharts(filteredRows);
   renderFunnelTopCampaigns(filteredRows);
+  renderSVGFunnel(filteredRows);
   const tableRows=aggregateForTable(filteredRows);
   sortRows(tableRows);
   renderTable(tableRows);
@@ -1280,6 +1535,7 @@ async function load(){
     document.getElementById('last-updated').textContent=
       'Updated '+new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});
     refresh();
+    if(!aiLoaded){ aiLoaded=true; generateAICommentary(); }
     document.getElementById('loading').classList.add('hidden');
   }catch(err){
     console.error('Load failed:',err);
