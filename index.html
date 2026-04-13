@@ -462,8 +462,55 @@
     </div>
   </div>
 
-  <!-- ── PERFORMANCE CHARTS ── -->
+  <!-- ── TOP CAMPAIGNS BY FUNNEL STAGE ── -->
   <div class="chart-section" style="margin-top:20px">
+    <div class="chart-section-header"><span class="chart-section-title">Top Campaigns by Funnel Stage</span><div class="chart-section-line"></div></div>
+    <div class="chart-card">
+      <div class="chart-title">Top 3 Campaigns by Clicks per Funnel Stage</div>
+      <div class="chart-subtitle">Highest-clicking campaigns within each stage, ranked by total clicks</div>
+      <div id="funnel-top-campaigns" class="ftc-grid" style="margin-top:4px"></div>
+    </div>
+  </div>
+
+  <!-- ── DREAMDATA ── -->
+  <div class="chart-section">
+    <div class="chart-section-header">
+      <svg width="18" height="18" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg" style="flex-shrink:0" aria-hidden="true"><rect width="32" height="32" rx="6" fill="#1a1a2e"/><circle cx="16" cy="16" r="7" stroke="#00fccc" stroke-width="2.5"/><circle cx="16" cy="16" r="2.5" fill="#00fccc"/></svg>
+      <span class="chart-section-title">Dreamdata — Company Engagement</span>
+      <div class="chart-section-line"></div>
+    </div>
+    <p class="dreamdata-note">Links open Dreamdata reports filtered by team. Contact your Dreamdata admin to update URLs.</p>
+    <div class="dreamdata-grid">
+      <div class="dreamdata-card">
+        <div class="dreamdata-team" style="color:var(--growth)">Growth</div>
+        <div class="dreamdata-label">View companies &amp; deal sizes engaging with this team's campaigns</div>
+        <a class="dreamdata-btn" href="https://app.dreamdata.io/team/growth" target="_blank" rel="noopener">Open in Dreamdata →</a>
+      </div>
+      <div class="dreamdata-card">
+        <div class="dreamdata-team" style="color:var(--scale)">Scale</div>
+        <div class="dreamdata-label">View companies &amp; deal sizes engaging with this team's campaigns</div>
+        <a class="dreamdata-btn" href="https://app.dreamdata.io/team/scale" target="_blank" rel="noopener">Open in Dreamdata →</a>
+      </div>
+      <div class="dreamdata-card">
+        <div class="dreamdata-team" style="color:var(--enterprise)">Enterprise</div>
+        <div class="dreamdata-label">View companies &amp; deal sizes engaging with this team's campaigns</div>
+        <a class="dreamdata-btn" href="https://app.dreamdata.io/team/enterprise" target="_blank" rel="noopener">Open in Dreamdata →</a>
+      </div>
+      <div class="dreamdata-card">
+        <div class="dreamdata-team" style="color:var(--central)">Central</div>
+        <div class="dreamdata-label">View companies &amp; deal sizes engaging with this team's campaigns</div>
+        <a class="dreamdata-btn" href="https://app.dreamdata.io/team/central" target="_blank" rel="noopener">Open in Dreamdata →</a>
+      </div>
+      <div class="dreamdata-card">
+        <div class="dreamdata-team" style="color:var(--pmi)">PMI</div>
+        <div class="dreamdata-label">View companies &amp; deal sizes engaging with this team's campaigns</div>
+        <a class="dreamdata-btn" href="https://app.dreamdata.io/team/pmi" target="_blank" rel="noopener">Open in Dreamdata →</a>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── PERFORMANCE CHARTS ── -->
+  <div class="chart-section">
     <div class="chart-section-header"><span class="chart-section-title">Performance</span><div class="chart-section-line"></div></div>
     <div class="charts-grid">
       <div class="chart-card">
@@ -519,53 +566,6 @@
         <div class="chart-title">Spend by Team</div>
         <div class="chart-subtitle">Total spend per team</div>
         <div class="chart-wrap"><canvas id="chart-team-spend"></canvas></div>
-      </div>
-    </div>
-  </div>
-
-  <!-- ── TOP CAMPAIGNS BY FUNNEL STAGE ── -->
-  <div class="chart-section">
-    <div class="chart-section-header"><span class="chart-section-title">Top Campaigns by Funnel Stage</span><div class="chart-section-line"></div></div>
-    <div class="chart-card">
-      <div class="chart-title">Top 3 Campaigns by Clicks per Funnel Stage</div>
-      <div class="chart-subtitle">Highest-clicking campaigns within each stage, ranked by total clicks</div>
-      <div id="funnel-top-campaigns" class="ftc-grid" style="margin-top:4px"></div>
-    </div>
-  </div>
-
-  <!-- ── DREAMDATA ── -->
-  <div class="chart-section">
-    <div class="chart-section-header">
-      <svg width="18" height="18" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg" style="flex-shrink:0" aria-hidden="true"><rect width="32" height="32" rx="6" fill="#1a1a2e"/><circle cx="16" cy="16" r="7" stroke="#00fccc" stroke-width="2.5"/><circle cx="16" cy="16" r="2.5" fill="#00fccc"/></svg>
-      <span class="chart-section-title">Dreamdata — Company Engagement</span>
-      <div class="chart-section-line"></div>
-    </div>
-    <p class="dreamdata-note">Links open Dreamdata reports filtered by team. Contact your Dreamdata admin to update URLs.</p>
-    <div class="dreamdata-grid">
-      <div class="dreamdata-card">
-        <div class="dreamdata-team" style="color:var(--growth)">Growth</div>
-        <div class="dreamdata-label">View companies &amp; deal sizes engaging with this team's campaigns</div>
-        <a class="dreamdata-btn" href="https://app.dreamdata.io/team/growth" target="_blank" rel="noopener">Open in Dreamdata →</a>
-      </div>
-      <div class="dreamdata-card">
-        <div class="dreamdata-team" style="color:var(--scale)">Scale</div>
-        <div class="dreamdata-label">View companies &amp; deal sizes engaging with this team's campaigns</div>
-        <a class="dreamdata-btn" href="https://app.dreamdata.io/team/scale" target="_blank" rel="noopener">Open in Dreamdata →</a>
-      </div>
-      <div class="dreamdata-card">
-        <div class="dreamdata-team" style="color:var(--enterprise)">Enterprise</div>
-        <div class="dreamdata-label">View companies &amp; deal sizes engaging with this team's campaigns</div>
-        <a class="dreamdata-btn" href="https://app.dreamdata.io/team/enterprise" target="_blank" rel="noopener">Open in Dreamdata →</a>
-      </div>
-      <div class="dreamdata-card">
-        <div class="dreamdata-team" style="color:var(--central)">Central</div>
-        <div class="dreamdata-label">View companies &amp; deal sizes engaging with this team's campaigns</div>
-        <a class="dreamdata-btn" href="https://app.dreamdata.io/team/central" target="_blank" rel="noopener">Open in Dreamdata →</a>
-      </div>
-      <div class="dreamdata-card">
-        <div class="dreamdata-team" style="color:var(--pmi)">PMI</div>
-        <div class="dreamdata-label">View companies &amp; deal sizes engaging with this team's campaigns</div>
-        <a class="dreamdata-btn" href="https://app.dreamdata.io/team/pmi" target="_blank" rel="noopener">Open in Dreamdata →</a>
       </div>
     </div>
   </div>
